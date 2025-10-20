@@ -97,12 +97,7 @@ export function ListDetailClient({ list, items, allSuggestions }: ListDetailClie
   const collectedItems = filteredItems.collected;
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <AppHeader 
-        title={list.name}
-        subtitle="Shopping List Details"
-        showThemeSwitcher={true}
-      />
+    <Container maxWidth="lg">
       <ShoppingListHeader list={list} onBack={handleBack} />
 
       {/* Search Field */}

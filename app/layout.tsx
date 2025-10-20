@@ -3,7 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { MuiThemeProvider } from '@/components/providers/MuiThemeProvider';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
-
+import { AppHeader } from '@/components/layout/AppHeader';
+import { Container } from '@/components/ui/Container';
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -31,6 +32,9 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <MuiThemeProvider>
+            <Container maxWidth="lg" sx={{ py: 4 }}>
+              <AppHeader />
+            </Container>
             {children}
           </MuiThemeProvider>
         </ThemeProvider>

@@ -17,7 +17,7 @@ export function HomeClient({ lists, error }: HomeClientProps) {
   if (error) {
     return (
       <Container maxWidth="lg" sx={{ py: 4 }}>
-        <AppHeader />
+        {/* <AppHeader /> */}
         
         <Box sx={{ textAlign: 'center', py: 8 }}>
           <Typography variant="h6" color="error">
@@ -32,9 +32,7 @@ export function HomeClient({ lists, error }: HomeClientProps) {
   }
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <AppHeader />
-      
+    <Container maxWidth="lg">      
       <ShoppingListsGrid 
         lists={lists} 
       />
