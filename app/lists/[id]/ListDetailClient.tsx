@@ -7,6 +7,7 @@ import { Box } from '@/components/ui/Box';
 import { Divider } from '@/components/ui/Divider';
 import { ShoppingListHeader } from '@/components/features/ShoppingListHeader';
 import { ShoppingListItem } from '@/components/features/ShoppingListItem';
+import { AppHeader } from '@/components/layout/AppHeader';
 import { Typography } from '@/components/ui/Typography';
 import { Autocomplete, AutocompleteOption } from '@/components/ui/Autocomplete';
 import { ShoppingList, ShoppingListItem as ShoppingListItemType, Item } from '@/types/shopping-list';
@@ -97,6 +98,11 @@ export function ListDetailClient({ list, items, allSuggestions }: ListDetailClie
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      <AppHeader 
+        title={list.name}
+        subtitle="Shopping List Details"
+        showThemeSwitcher={true}
+      />
       <ShoppingListHeader list={list} onBack={handleBack} />
 
       {/* Search Field */}
