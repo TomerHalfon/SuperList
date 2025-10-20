@@ -47,9 +47,9 @@ export class SupabaseItemRepository implements IItemRepository {
   /**
    * Create a new item
    */
-  async create(data: CreateItemInput): Promise<Item> {
+  async create(inputData: CreateItemInput): Promise<Item> {
     try {
-      const validatedData = validateCreateItem(data);
+      const validatedData = validateCreateItem(inputData);
       
       // Check if item with same name already exists
       const existingItem = await this.getByName(validatedData.name);
@@ -86,9 +86,9 @@ export class SupabaseItemRepository implements IItemRepository {
   /**
    * Update an existing item
    */
-  async update(id: string, data: UpdateItemInput): Promise<Item> {
+  async update(id: string, inputData: UpdateItemInput): Promise<Item> {
     try {
-      const validatedData = validateUpdateItem(data);
+      const validatedData = validateUpdateItem(inputData);
       
       // Check if item exists
       const existingItem = await this.getById(id);

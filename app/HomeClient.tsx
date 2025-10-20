@@ -10,6 +10,7 @@ import { ShoppingListsGrid } from '@/components/features/ShoppingListsGrid';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { ShoppingList } from '@/types/shopping-list';
 import { createListAction } from '@/actions/lists';
+import { useSnackbar } from '@/components/providers/SnackbarProvider';
 import { Add as AddIcon } from '@mui/icons-material';
 
 interface HomeClientProps {
@@ -20,6 +21,7 @@ interface HomeClientProps {
 export function HomeClient({ lists, error }: HomeClientProps) {
   const router = useRouter();
   const [isCreating, setIsCreating] = useState(false);
+  const { showSuccess, showError } = useSnackbar();
 
   const handleCreateList = async () => {
     if (isCreating) return;
@@ -33,14 +35,15 @@ export function HomeClient({ lists, error }: HomeClientProps) {
       const result = await createListAction(formData);
       
       if (result.success && result.data) {
+        showSuccess('Shopping list created successfully');
         router.push(`/lists/${result.data.id}`);
       } else {
         console.error('Failed to create list:', result.error);
-        // TODO: Show error toast/notification
+        showError(result.error || 'Failed to create shopping list');
       }
     } catch (error) {
       console.error('Error creating list:', error);
-      // TODO: Show error toast/notification
+      showError('Failed to create shopping list');
     } finally {
       setIsCreating(false);
     }

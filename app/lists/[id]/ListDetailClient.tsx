@@ -16,6 +16,7 @@ import { filterItemsBySearch } from '@/lib/utils/search-helpers';
 import { filterSuggestions } from '@/lib/utils/search-suggestions';
 import { useDebounce } from '@/hooks/useDebounce';
 import { toggleItemCollectedAction, updateListNameAction } from '@/actions/lists';
+import { useSnackbar } from '@/components/providers/SnackbarProvider';
 
 interface ListDetailClientProps {
   list: ShoppingList;
@@ -28,6 +29,7 @@ export function ListDetailClient({ list, items, allSuggestions }: ListDetailClie
   const [searchInput, setSearchInput] = useState('');
   const [selectedOption, setSelectedOption] = useState<AutocompleteOption | null>(null);
   const debouncedSearchInput = useDebounce(searchInput, 300);
+  const { showSuccess, showError } = useSnackbar();
 
   const filteredSuggestions = useMemo(() => {
     return filterSuggestions(allSuggestions, searchInput);
@@ -41,17 +43,18 @@ export function ListDetailClient({ list, items, allSuggestions }: ListDetailClie
     try {
       const result = await toggleItemCollectedAction(list.id, itemId);
       if (result.success) {
+        showSuccess('Item status updated');
         // The page will be revalidated automatically by the Server Action
         // No need to update local state
       } else {
         console.error('Failed to toggle item:', result.error);
-        // TODO: Show error toast/notification
+        showError(result.error || 'Failed to update item status');
       }
     } catch (error) {
       console.error('Error toggling item:', error);
-      // TODO: Show error toast/notification
+      showError('Failed to update item status');
     }
-  }, [list.id]);
+  }, [list.id, showSuccess, showError]);
 
   const handleSearchChange = useCallback((event: React.SyntheticEvent, newValue: AutocompleteOption | null) => {
     setSelectedOption(newValue);
@@ -78,16 +81,18 @@ export function ListDetailClient({ list, items, allSuggestions }: ListDetailClie
   const handleNameUpdate = useCallback(async (newName: string) => {
     try {
       const result = await updateListNameAction(list.id, newName);
-      if (!result.success) {
+      if (result.success) {
+        showSuccess('List name updated');
+        // The page will be revalidated automatically by the Server Action
+      } else {
         console.error('Failed to update list name:', result.error);
-        // TODO: Show error toast/notification
+        showError(result.error || 'Failed to update list name');
       }
-      // The page will be revalidated automatically by the Server Action
     } catch (error) {
       console.error('Error updating list name:', error);
-      // TODO: Show error toast/notification
+      showError('Failed to update list name');
     }
-  }, [list.id]);
+  }, [list.id, showSuccess, showError]);
 
   // Filter items based on search
   const filteredItems = useMemo(() => {

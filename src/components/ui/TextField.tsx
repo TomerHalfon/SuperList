@@ -41,9 +41,9 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(({
 
   return (
     <MuiTextField
-      ref={ref}
       variant={variant}
       value={value}
+      inputRef={ref}
       InputProps={{
         startAdornment,
         endAdornment,
