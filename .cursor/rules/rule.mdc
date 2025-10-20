@@ -1,0 +1,714 @@
+---
+alwaysApply: true
+---
+# SuperList - Shopping List Management App
+
+## Project Overview
+This is a Next.js 15 shopping list management application using MUI components with custom wrappers to avoid direct dependency on MUI throughout the codebase.
+
+## Architecture Principles
+
+### 1. Component Architecture
+- **Custom Component Wrappers**: Never use MUI components directly in business logic components
+- **Abstraction Layer**: Create custom components that wrap MUI components in `src/components/ui/`
+- **Separation of Concerns**: Business logic components should only use custom UI components
+- **Consistent API**: All custom components should have consistent prop interfaces
+
+### 2. Folder Structure
+```
+SuperList/
+├── app/                    # Next.js 15 App Router (root level)
+│   ├── (auth)/            # Route groups
+│   ├── (dashboard)/       # Protected dashboard routes
+│   ├── api/               # API routes
+│   ├── globals.css        # Global styles
+│   ├── layout.tsx         # Root layout
+│   ├── loading.tsx        # Global loading UI
+│   ├── error.tsx          # Global error UI
+│   ├── not-found.tsx      # 404 page
+│   └── page.tsx           # Homepage
+├── src/                   # Source code directory
+│   ├── components/        # Reusable components
+│   │   ├── ui/           # MUI wrapper components
+│   │   ├── forms/        # Form components
+│   │   ├── layout/       # Layout components
+│   │   ├── features/     # Feature-specific components
+│   │   └── providers/    # Context providers
+│   ├── lib/              # Utilities and configurations
+│   │   ├── api/          # API client and utilities
+│   │   ├── auth/         # Authentication logic
+│   │   ├── db/           # Database utilities
+│   │   ├── data/         # Mock data and data utilities
+│   │   ├── utils/        # General utilities
+│   │   ├── validations/  # Zod schemas
+│   │   └── constants/    # App constants
+│   ├── hooks/            # Custom React hooks
+│   ├── types/            # TypeScript type definitions
+│   ├── stores/           # State management (Zustand)
+│   └── actions/          # Server Actions
+├── public/               # Static assets
+├── middleware.ts         # Next.js middleware (root level)
+├── tsconfig.json         # TypeScript configuration
+└── package.json          # Dependencies and scripts
+```
+
+**Important Notes:**
+- The `app/` directory must be at the root level for Next.js 15 App Router
+- The `src/` directory contains all source code (components, lib, types, etc.)
+- TypeScript path mapping: `"@/*": ["./src/*"]` in tsconfig.json
+- Never put the `app/` directory inside `src/` - this causes import resolution issues
+
+### 3. Current Implementation Status
+**✅ Completed:**
+- Shopping list dashboard with responsive grid layout
+- MUI wrapper components (Card, Grid, Typography, Progress)
+- Mock data structure with TypeScript interfaces
+- Date formatting and completion calculation utilities
+- Mobile-first responsive design
+
+**📁 Current Data Structure:**
+```typescript
+// src/types/shopping-list.ts
+interface Item {
+  id: string;
+  name: string;
+  tags: string[];
+}
+
+interface ShoppingListItem {
+  itemId: string;
+  quantity: number;
+  collected: boolean;
+}
+
+interface ShoppingList {
+  id: string;
+  name: string;
+  updatedAt: string;
+  items: ShoppingListItem[];
+}
+```
+
+**📊 Mock Data Location:**
+- `src/lib/data/mock-data.ts` - Contains mock items and shopping lists
+- 25+ grocery items with categories and tags
+- 8 sample shopping lists with varying completion states
+
+**🎨 Implemented Components:**
+- `src/components/ui/Card.tsx` - MUI Card wrapper with hover effects
+- `src/components/ui/Grid.tsx` - MUI Grid2 wrapper for responsive layouts
+- `src/components/ui/Typography.tsx` - MUI Typography wrapper
+- `src/components/ui/Progress.tsx` - MUI LinearProgress wrapper with percentage display
+- `src/components/features/ShoppingListCard.tsx` - Individual list card component
+- `src/components/features/ShoppingListsGrid.tsx` - Grid container with empty state
+
+**🛠️ Utilities:**
+- `src/lib/utils/date-formatter.ts` - Smart date formatting (relative/absolute)
+- `src/lib/utils/list-calculator.ts` - Completion percentage calculations
+
+### 4. Component Naming Conventions
+- **UI Components**: PascalCase with descriptive names (e.g., `CustomButton`, `CustomTextField`)
+- **Feature Components**: PascalCase with feature prefix (e.g., `ShoppingListCard`, `ItemForm`)
+- **Layout Components**: PascalCase with Layout suffix (e.g., `MainLayout`, `AuthLayout`)
+- **Hooks**: camelCase with `use` prefix (e.g., `useShoppingList`, `useAuth`)
+
+### 5. File Naming
+- **Components**: PascalCase (e.g., `ShoppingList.tsx`)
+- **Hooks**: camelCase (e.g., `useShoppingList.ts`)
+- **Utilities**: camelCase (e.g., `formatDate.ts`)
+- **Types**: PascalCase (e.g., `ShoppingList.ts`)
+- **Constants**: UPPER_SNAKE_CASE (e.g., `API_ENDPOINTS.ts`)
+
+## Development Rules
+
+### 1. MUI Component Wrapping
+```typescript
+// ❌ DON'T: Use MUI directly in business components
+import { Button } from '@mui/material';
+
+// ✅ DO: Create wrapper components
+// src/components/ui/Button.tsx
+import { Button as MuiButton, ButtonProps as MuiButtonProps } from '@mui/material';
+
+export interface ButtonProps extends MuiButtonProps {
+  variant?: 'primary' | 'secondary' | 'danger';
+  size?: 'small' | 'medium' | 'large';
+}
+
+export const Button: React.FC<ButtonProps> = ({ variant = 'primary', size = 'medium', ...props }) => {
+  return <MuiButton variant={variant} size={size} {...props} />;
+};
+```
+
+### 2. TypeScript Rules
+- **Strict Types**: Always define proper TypeScript interfaces
+- **No Any**: Avoid `any` type, use proper typing or `unknown`
+- **Generic Components**: Use generics for reusable components
+- **API Types**: Define separate types for API responses and internal state
+
+### 3. State Management
+- **Local State**: Use `useState` for component-specific state
+- **Global State**: Use Zustand for app-wide state (shopping lists, user data)
+- **Server State**: Use TanStack Query v5 for API data and caching
+- **Form State**: Use React Hook Form with Zod validation
+- **URL State**: Use Next.js searchParams for URL-based state
+- **Server State**: Prefer Server Components and Server Actions over client-side fetching
+
+### 4. API Design
+- **RESTful**: Follow REST conventions for API endpoints
+- **Server Actions**: Prefer Server Actions over API routes for mutations
+- **Error Handling**: Implement proper error boundaries and error states
+- **Loading States**: Always handle loading and error states with Suspense
+- **Optimistic Updates**: Use optimistic updates for better UX
+- **Type Safety**: Ensure end-to-end type safety from database to UI
+
+### 5. Performance Rules
+- **Code Splitting**: Use dynamic imports for route-based code splitting
+- **Memoization**: Use `React.memo`, `useMemo`, and `useCallback` appropriately
+- **Image Optimization**: Use Next.js Image component with proper sizing
+- **Bundle Analysis**: Regularly analyze bundle size with @next/bundle-analyzer
+- **Streaming**: Use React Suspense for streaming and progressive loading
+- **Edge Runtime**: Use Edge Runtime for simple API routes when possible
+- **Caching**: Implement proper caching strategies with Next.js cache functions
+
+### 6. Accessibility
+- **ARIA Labels**: Always provide proper ARIA labels and descriptions
+- **Keyboard Navigation**: Ensure all interactive elements are keyboard accessible
+- **Color Contrast**: Maintain WCAG AA compliance (4.5:1 ratio)
+- **Screen Reader**: Test with screen readers and semantic HTML
+- **Focus Management**: Implement proper focus management for modals and navigation
+- **Motion**: Respect prefers-reduced-motion for animations
+
+### 7. Testing Strategy
+- **Unit Tests**: Test individual components and utilities with Vitest
+- **Integration Tests**: Test component interactions with React Testing Library
+- **E2E Tests**: Test critical user flows with Playwright
+- **Test Coverage**: Maintain >80% test coverage
+- **Visual Testing**: Use Chromatic or similar for visual regression testing
+- **API Testing**: Test API routes and Server Actions with proper mocking
+
+## Code Style Guidelines
+
+### 1. Component Structure
+```typescript
+// Component imports
+import React from 'react';
+import { Button } from '@/components/ui/Button';
+import { useShoppingList } from '@/hooks/useShoppingList';
+import { ShoppingList as ShoppingListType } from '@/types/shopping-list';
+
+// Types
+interface ShoppingListProps {
+  listId: string;
+  onUpdate?: (list: ShoppingListType) => void;
+}
+
+// Component
+export const ShoppingList: React.FC<ShoppingListProps> = ({ listId, onUpdate }) => {
+  // Hooks
+  const { list, updateList, isLoading, error } = useShoppingList(listId);
+  
+  // Event handlers
+  const handleItemAdd = React.useCallback((item: ShoppingItem) => {
+    // Implementation with proper error handling
+  }, [updateList]);
+  
+  // Early returns for loading and error states
+  if (isLoading) return <ShoppingListSkeleton />;
+  if (error) return <ErrorBoundary error={error} />;
+  if (!list) return <EmptyState />;
+  
+  // Render
+  return (
+    <div>
+      {/* Component JSX */}
+    </div>
+  );
+};
+```
+
+### 2. Error Handling
+```typescript
+// Always handle errors gracefully with proper error boundaries
+import { ErrorBoundary } from 'react-error-boundary';
+import { useQuery } from '@tanstack/react-query';
+
+const { data, error, isLoading } = useQuery({
+  queryKey: ['shoppingList', listId],
+  queryFn: () => fetchShoppingList(listId),
+  retry: (failureCount, error) => {
+    // Don't retry on 4xx errors
+    if (error.status >= 400 && error.status < 500) return false;
+    return failureCount < 3;
+  },
+  staleTime: 5 * 60 * 1000, // 5 minutes
+});
+
+// Error boundary wrapper
+<ErrorBoundary
+  FallbackComponent={ErrorFallback}
+  onError={(error, errorInfo) => {
+    console.error('Shopping list error:', error, errorInfo);
+    // Send to error reporting service
+  }}
+>
+  {error ? <ErrorState error={error} /> : <ShoppingListContent data={data} />}
+</ErrorBoundary>
+```
+
+### 3. Form Handling
+```typescript
+// Use React Hook Form with Zod validation and Server Actions
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { createItemAction } from '@/actions/items';
+import { useActionState } from 'react';
+
+const schema = z.object({
+  name: z.string().min(1, 'Name is required').max(100, 'Name too long'),
+  quantity: z.coerce.number().min(1, 'Quantity must be at least 1'),
+  category: z.string().optional(),
+});
+
+type FormData = z.infer<typeof schema>;
+
+export const ItemForm: React.FC = () => {
+  const [state, formAction, isPending] = useActionState(createItemAction, null);
+  
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<FormData>({
+    resolver: zodResolver(schema),
+  });
+  
+  const onSubmit = (data: FormData) => {
+    const formData = new FormData();
+    Object.entries(data).forEach(([key, value]) => {
+      formData.append(key, String(value));
+    });
+    formAction(formData);
+  };
+  
+  // Reset form on success
+  React.useEffect(() => {
+    if (state?.success) {
+      reset();
+    }
+  }, [state?.success, reset]);
+  
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+      {/* Form fields */}
+      {state?.error && <ErrorMessage message={state.error} />}
+    </form>
+  );
+};
+```
+
+## Server-Side Operations
+
+### 1. Next.js 15 App Router Guidelines
+- **Server Components**: Use Server Components by default for data fetching and static content
+- **Client Components**: Only use `"use client"` when necessary (interactivity, browser APIs, state)
+- **Route Handlers**: Use `app/api/` for API endpoints with proper HTTP methods
+- **Server Actions**: Use Server Actions for form submissions and mutations
+- **Streaming**: Implement streaming for better performance with Suspense boundaries
+
+### 2. API Route Structure
+```typescript
+// app/api/shopping-lists/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { validateRequest } from '@/lib/auth/validate';
+import { createShoppingList } from '@/lib/db/shopping-lists';
+
+const createListSchema = z.object({
+  name: z.string().min(1).max(100),
+  description: z.string().optional(),
+});
+
+export async function POST(request: NextRequest) {
+  try {
+    // Authentication
+    const user = await validateRequest(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Validation
+    const body = await request.json();
+    const validatedData = createListSchema.parse(body);
+
+    // Business Logic
+    const shoppingList = await createShoppingList({
+      ...validatedData,
+      userId: user.id,
+    });
+
+    return NextResponse.json(shoppingList, { status: 201 });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Invalid input', details: error.errors }, { status: 400 });
+    }
+    
+    console.error('API Error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+```
+
+### 3. Server Actions
+```typescript
+// app/actions/shopping-lists.ts
+'use server';
+
+import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
+import { z } from 'zod';
+import { createShoppingList } from '@/lib/db/shopping-lists';
+import { validateUser } from '@/lib/auth/validate';
+
+const createListSchema = z.object({
+  name: z.string().min(1).max(100),
+  description: z.string().optional(),
+});
+
+export async function createListAction(formData: FormData) {
+  try {
+    // Authentication
+    const user = await validateUser();
+    if (!user) {
+      redirect('/login');
+    }
+
+    // Validation
+    const rawData = {
+      name: formData.get('name'),
+      description: formData.get('description'),
+    };
+    
+    const validatedData = createListSchema.parse(rawData);
+
+    // Business Logic
+    const shoppingList = await createShoppingList({
+      ...validatedData,
+      userId: user.id,
+    });
+
+    // Revalidation
+    revalidatePath('/dashboard');
+    redirect(`/dashboard/lists/${shoppingList.id}`);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return { error: 'Invalid input', details: error.errors };
+    }
+    
+    console.error('Server Action Error:', error);
+    return { error: 'Failed to create shopping list' };
+  }
+}
+```
+
+### 4. Database Operations
+- **Connection Pooling**: Use connection pooling for database connections
+- **Transactions**: Use transactions for multi-step operations
+- **Query Optimization**: Optimize queries and use proper indexing
+- **Error Handling**: Implement proper error handling and logging
+- **Migrations**: Use proper database migration strategies
+
+### 5. Caching Strategy
+```typescript
+// lib/cache.ts
+import { unstable_cache } from 'next/cache';
+import { revalidateTag } from 'next/cache';
+
+export const getCachedShoppingLists = unstable_cache(
+  async (userId: string) => {
+    return await fetchShoppingLists(userId);
+  },
+  ['shopping-lists'],
+  {
+    tags: [`shopping-lists-${userId}`],
+    revalidate: 300, // 5 minutes
+  }
+);
+
+// Cache invalidation helper
+export async function revalidateShoppingLists(userId: string) {
+  revalidateTag(`shopping-lists-${userId}`);
+}
+
+// Usage in Server Component with Suspense
+export default async function ShoppingListsPage() {
+  const user = await validateUser();
+  
+  return (
+    <Suspense fallback={<ShoppingListsSkeleton />}>
+      <ShoppingListsContent userId={user.id} />
+    </Suspense>
+  );
+}
+
+async function ShoppingListsContent({ userId }: { userId: string }) {
+  const lists = await getCachedShoppingLists(userId);
+  return <ShoppingListsList lists={lists} />;
+}
+```
+
+### 6. Middleware Guidelines
+```typescript
+// middleware.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { validateToken } from '@/lib/auth/validate';
+
+export async function middleware(request: NextRequest) {
+  // Authentication check for protected routes
+  if (request.nextUrl.pathname.startsWith('/dashboard')) {
+    const token = request.cookies.get('auth-token')?.value;
+    
+    if (!token || !(await validateToken(token))) {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+  }
+
+  // Rate limiting
+  const ip = request.ip ?? '127.0.0.1';
+  const rateLimitResult = await checkRateLimit(ip);
+  
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many requests' },
+      { status: 429 }
+    );
+  }
+
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: ['/dashboard/:path*', '/api/:path*'],
+};
+```
+
+### 7. Error Handling & Logging
+```typescript
+// lib/error-handler.ts
+export class AppError extends Error {
+  constructor(
+    message: string,
+    public statusCode: number = 500,
+    public isOperational: boolean = true
+  ) {
+    super(message);
+    this.name = this.constructor.name;
+    Error.captureStackTrace(this, this.constructor);
+  }
+}
+
+export function handleApiError(error: unknown) {
+  if (error instanceof AppError) {
+    return NextResponse.json(
+      { error: error.message },
+      { status: error.statusCode }
+    );
+  }
+
+  if (error instanceof z.ZodError) {
+    return NextResponse.json(
+      { error: 'Validation failed', details: error.errors },
+      { status: 400 }
+    );
+  }
+
+  // Log unexpected errors
+  console.error('Unexpected error:', error);
+  
+  return NextResponse.json(
+    { error: 'Internal server error' },
+    { status: 500 }
+  );
+}
+```
+
+### 8. Environment & Configuration
+```typescript
+// lib/config.ts
+import { z } from 'zod';
+
+const configSchema = z.object({
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  DATABASE_URL: z.string().url(),
+  JWT_SECRET: z.string().min(32),
+  NEXTAUTH_URL: z.string().url(),
+  NEXTAUTH_SECRET: z.string().min(32),
+  REDIS_URL: z.string().url().optional(),
+  UPLOADTHING_SECRET: z.string().optional(),
+  UPLOADTHING_APP_ID: z.string().optional(),
+});
+
+// Client-side config (only public variables)
+const clientConfigSchema = z.object({
+  NEXT_PUBLIC_APP_URL: z.string().url(),
+  NEXT_PUBLIC_APP_NAME: z.string().default('SuperList'),
+});
+
+export const config = configSchema.parse(process.env);
+export const clientConfig = clientConfigSchema.parse(process.env);
+
+// Usage
+export const dbConfig = {
+  url: config.DATABASE_URL,
+  ssl: config.NODE_ENV === 'production',
+};
+```
+
+### 9. File Upload Handling
+```typescript
+// Use UploadThing or similar service for production
+// app/api/upload/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { writeFile, mkdir } from 'fs/promises';
+import { join } from 'path';
+import { z } from 'zod';
+
+const uploadSchema = z.object({
+  file: z.instanceof(File).refine(
+    (file) => file.size <= 5 * 1024 * 1024, // 5MB limit
+    'File size must be less than 5MB'
+  ).refine(
+    (file) => ['image/jpeg', 'image/png', 'image/webp'].includes(file.type),
+    'Only JPEG, PNG, and WebP images are allowed'
+  ),
+});
+
+export async function POST(request: NextRequest) {
+  try {
+    const data = await request.formData();
+    const file: File | null = data.get('file') as unknown as File;
+
+    if (!file) {
+      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
+    }
+
+    // Validate file
+    const validation = uploadSchema.safeParse({ file });
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: 'Invalid file', details: validation.error.errors },
+        { status: 400 }
+      );
+    }
+
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+
+    // Create uploads directory if it doesn't exist
+    const uploadsDir = join(process.cwd(), 'public/uploads');
+    await mkdir(uploadsDir, { recursive: true });
+
+    // Generate unique filename
+    const timestamp = Date.now();
+    const filename = `${timestamp}-${file.name}`;
+    const path = join(uploadsDir, filename);
+    
+    await writeFile(path, buffer);
+
+    return NextResponse.json({ 
+      success: true, 
+      path: `/uploads/${filename}`,
+      size: file.size,
+      type: file.type
+    });
+  } catch (error) {
+    console.error('Upload error:', error);
+    return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
+  }
+}
+```
+
+### 10. Performance Optimization
+- **Streaming**: Use React Suspense for streaming content and progressive loading
+- **Parallel Data Fetching**: Fetch multiple data sources in parallel with Promise.all
+- **Edge Runtime**: Use Edge Runtime for simple API routes when possible
+- **Bundle Analysis**: Monitor and optimize bundle sizes with @next/bundle-analyzer
+- **Database Indexing**: Proper database indexing for queries and connection pooling
+- **Image Optimization**: Use Next.js Image component with proper sizing and formats
+- **Font Optimization**: Use next/font for optimal font loading
+- **Code Splitting**: Implement route-based and component-based code splitting
+
+## Security Guidelines
+
+### 1. Data Validation
+- **Input Validation**: Validate all user inputs on both client and server with Zod
+- **Sanitization**: Sanitize data before storing or displaying
+- **CSRF Protection**: Implement CSRF protection for forms (Next.js handles this automatically)
+- **Rate Limiting**: Implement rate limiting for API endpoints
+- **File Upload Security**: Validate file types, sizes, and scan for malware
+
+### 2. Authentication & Authorization
+- **NextAuth.js**: Use NextAuth.js v5 for authentication with multiple providers
+- **JWT Tokens**: Use secure JWT tokens with proper expiration
+- **Role-Based Access**: Implement proper role-based access control (RBAC)
+- **Session Management**: Secure session management with httpOnly cookies
+- **Password Security**: Use bcrypt for password hashing with proper salt rounds
+- **2FA Support**: Implement two-factor authentication for enhanced security
+
+## Deployment & Environment
+
+### 1. Environment Variables
+- **NEXT_PUBLIC_**: Prefix for client-side variables (exposed to browser)
+- **Server Variables**: Keep sensitive data server-side only
+- **Validation**: Validate environment variables at startup with Zod
+- **Type Safety**: Use typed environment variables for better DX
+- **Secrets Management**: Use proper secrets management in production
+
+### 2. Build Optimization
+- **Bundle Analysis**: Use `@next/bundle-analyzer` for bundle size monitoring
+- **Image Optimization**: Configure Next.js image optimization with proper formats
+- **Caching**: Implement proper caching strategies with Next.js cache functions
+- **Tree Shaking**: Ensure proper tree shaking for smaller bundles
+- **Compression**: Enable gzip/brotli compression for static assets
+- **CDN**: Use CDN for static assets in production
+
+## Git Workflow
+
+### 1. Branch Naming
+- `feature/shopping-list-crud`
+- `bugfix/fix-item-deletion`
+- `refactor/component-structure`
+
+### 2. Commit Messages
+- Use conventional commits format
+- `feat: add shopping list creation`
+- `fix: resolve item update issue`
+- `refactor: extract common UI components`
+
+### 3. Pull Request Guidelines
+- Include description of changes
+- Add screenshots for UI changes
+- Ensure all tests pass
+- Request code review from team members
+
+## Performance Monitoring
+
+### 1. Metrics to Track
+- **Core Web Vitals**: LCP, FID, CLS
+- **Bundle Size**: Monitor bundle size growth
+- **API Response Times**: Track API performance
+- **Error Rates**: Monitor error frequencies
+
+### 2. Tools
+- **Vercel Analytics**: For production monitoring
+- **Lighthouse**: For performance audits
+- **Bundle Analyzer**: For bundle size analysis
+
+## Documentation
+
+### 1. Component Documentation
+- Document all public component props
+- Include usage examples
+- Document any special behaviors
+
+### 2. API Documentation
+- Document all API endpoints
+- Include request/response examples
+- Document error codes and messages
