@@ -418,6 +418,61 @@ export async function duplicateListAction(id: string, newName?: string): Promise
 }
 
 /**
+ * Update list name
+ */
+export async function updateListNameAction(listId: string, newName: string): Promise<ActionResult> {
+  try {
+    if (!listId) {
+      return {
+        success: false,
+        error: 'List ID is required',
+      };
+    }
+
+    if (!newName || newName.trim().length === 0) {
+      return {
+        success: false,
+        error: 'List name is required',
+      };
+    }
+
+    const validatedData = validateUpdateList({ name: newName.trim() });
+    const repository = getListRepository();
+    const list = await repository.update(listId, validatedData);
+
+    revalidatePath('/');
+    revalidatePath(`/lists/${listId}`);
+    
+    return {
+      success: true,
+      data: list,
+    };
+  } catch (error) {
+    console.error('Update list name error:', error);
+    
+    if (error instanceof ValidationError) {
+      return {
+        success: false,
+        error: error.message,
+        details: error.details,
+      };
+    }
+    
+    if (error instanceof StorageError && error.code === 'NOT_FOUND') {
+      return {
+        success: false,
+        error: 'Shopping list not found',
+      };
+    }
+    
+    return {
+      success: false,
+      error: 'Failed to update list name',
+    };
+  }
+}
+
+/**
  * Clear completed items from a list
  */
 export async function clearCompletedItemsAction(listId: string): Promise<ActionResult> {

@@ -1,12 +1,16 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Container } from '@/components/ui/Container';
 import { Box } from '@/components/ui/Box';
 import { Typography } from '@/components/ui/Typography';
+import { Fab } from '@/components/ui/Fab';
 import { ShoppingListsGrid } from '@/components/features/ShoppingListsGrid';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { ShoppingList } from '@/types/shopping-list';
+import { createListAction } from '@/actions/lists';
+import { Add as AddIcon } from '@mui/icons-material';
 
 interface HomeClientProps {
   lists: ShoppingList[];
@@ -14,6 +18,34 @@ interface HomeClientProps {
 }
 
 export function HomeClient({ lists, error }: HomeClientProps) {
+  const router = useRouter();
+  const [isCreating, setIsCreating] = useState(false);
+
+  const handleCreateList = async () => {
+    if (isCreating) return;
+    
+    setIsCreating(true);
+    try {
+      const formData = new FormData();
+      formData.append('name', 'New List');
+      formData.append('items', JSON.stringify([]));
+      
+      const result = await createListAction(formData);
+      
+      if (result.success && result.data) {
+        router.push(`/lists/${result.data.id}`);
+      } else {
+        console.error('Failed to create list:', result.error);
+        // TODO: Show error toast/notification
+      }
+    } catch (error) {
+      console.error('Error creating list:', error);
+      // TODO: Show error toast/notification
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   if (error) {
     return (
       <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -32,10 +64,20 @@ export function HomeClient({ lists, error }: HomeClientProps) {
   }
 
   return (
-    <Container maxWidth="lg">      
-      <ShoppingListsGrid 
-        lists={lists} 
-      />
-    </Container>
+    <>
+      <Container maxWidth="lg">      
+        <ShoppingListsGrid 
+          lists={lists} 
+        />
+      </Container>
+      
+      <Fab
+        onClick={handleCreateList}
+        disabled={isCreating}
+        aria-label="Create new shopping list"
+      >
+        <AddIcon />
+      </Fab>
+    </>
   );
 }

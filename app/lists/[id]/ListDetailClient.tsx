@@ -15,7 +15,7 @@ import { getItemDetails } from '@/lib/utils/list-helpers';
 import { filterItemsBySearch } from '@/lib/utils/search-helpers';
 import { filterSuggestions } from '@/lib/utils/search-suggestions';
 import { useDebounce } from '@/hooks/useDebounce';
-import { toggleItemCollectedAction } from '@/actions/lists';
+import { toggleItemCollectedAction, updateListNameAction } from '@/actions/lists';
 
 interface ListDetailClientProps {
   list: ShoppingList;
@@ -75,6 +75,20 @@ export function ListDetailClient({ list, items, allSuggestions }: ListDetailClie
     setSelectedOption(null);
   }, []);
 
+  const handleNameUpdate = useCallback(async (newName: string) => {
+    try {
+      const result = await updateListNameAction(list.id, newName);
+      if (!result.success) {
+        console.error('Failed to update list name:', result.error);
+        // TODO: Show error toast/notification
+      }
+      // The page will be revalidated automatically by the Server Action
+    } catch (error) {
+      console.error('Error updating list name:', error);
+      // TODO: Show error toast/notification
+    }
+  }, [list.id]);
+
   // Filter items based on search
   const filteredItems = useMemo(() => {
     const allItems = list.items.map(item => {
@@ -98,7 +112,7 @@ export function ListDetailClient({ list, items, allSuggestions }: ListDetailClie
 
   return (
     <Container maxWidth="lg">
-      <ShoppingListHeader list={list} onBack={handleBack} />
+      <ShoppingListHeader list={list} onBack={handleBack} onNameUpdate={handleNameUpdate} />
 
       {/* Search Field */}
       <Box sx={{ mb: 3 }}>
@@ -163,10 +177,20 @@ export function ListDetailClient({ list, items, allSuggestions }: ListDetailClie
         {list.items.length === 0 && (
           <Box sx={{ textAlign: 'center', py: 8 }}>
             <Typography variant="h6" color="textSecondary">
-              No items in this list
+              {(() => {
+                const funnyMessages = [
+                  "Time to fill this up! Your wallet is safe... for now 🛒",
+                  "This list is emptier than my fridge on Monday morning 🤷",
+                  "Go ahead, add some items! Your shopping cart is feeling lonely 🛍️",
+                  "Empty list detected! Time to channel your inner shopping ninja 🥷",
+                  "Nothing here yet! Your future self will thank you for adding items 📝",
+                  "This list is so empty, even the shopping cart is lonely 🛒💔"
+                ];
+                return funnyMessages[Math.floor(Math.random() * funnyMessages.length)];
+              })()}
             </Typography>
             <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-              Add some items to get started!
+              Use the search above to add your first items!
             </Typography>
           </Box>
         )}
