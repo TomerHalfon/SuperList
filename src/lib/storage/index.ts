@@ -2,6 +2,8 @@ import { IItemRepository, IListRepository, StorageConfig } from './interfaces';
 import { JsonStorage } from './json/json-storage';
 import { JsonItemRepository } from './json/item-repository';
 import { JsonListRepository } from './json/list-repository';
+import { SupabaseItemRepository } from './supabase/item-repository';
+import { SupabaseListRepository } from './supabase/list-repository';
 
 // Storage configuration
 const getStorageConfig = (): StorageConfig => {
@@ -33,6 +35,10 @@ export function getItemRepository(): IItemRepository {
         itemRepository = new JsonItemRepository(jsonStorage);
         break;
         
+      case 'supabase':
+        itemRepository = new SupabaseItemRepository();
+        break;
+        
       case 'vercel-kv':
         // Future: Implement Vercel KV repository
         throw new Error('Vercel KV storage not yet implemented');
@@ -60,6 +66,10 @@ export function getListRepository(): IListRepository {
       case 'json':
         const jsonStorage = new JsonStorage(config.options?.dataDir);
         listRepository = new JsonListRepository(jsonStorage);
+        break;
+        
+      case 'supabase':
+        listRepository = new SupabaseListRepository();
         break;
         
       case 'vercel-kv':
@@ -94,6 +104,9 @@ export async function initializeStorage(): Promise<void> {
     await itemRepo.initializeWithDefaults(mockItems.items);
     await listRepo.initializeWithDefaults(mockShoppingLists.lists);
   }
+  
+  // For Supabase, initialization is handled by the migration script
+  // No automatic initialization needed as data is managed through migrations
 }
 
 /**

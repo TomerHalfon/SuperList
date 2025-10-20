@@ -59,7 +59,7 @@ export interface IListRepository {
 
 // Storage configuration
 export interface StorageConfig {
-  type: 'json' | 'vercel-kv' | 'vercel-postgres';
+  type: 'json' | 'vercel-kv' | 'vercel-postgres' | 'supabase';
   options?: Record<string, any>;
 }
 

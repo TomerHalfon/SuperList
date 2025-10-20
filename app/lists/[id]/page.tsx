@@ -1,15 +1,9 @@
 import React from 'react';
-import { Container, Box, Divider } from '@mui/material';
-import { ShoppingListHeader } from '@/components/features/ShoppingListHeader';
-import { ShoppingListItem } from '@/components/features/ShoppingListItem';
-import { Typography } from '@/components/ui/Typography';
-import { Autocomplete, AutocompleteOption } from '@/components/ui/Autocomplete';
+import { AutocompleteOption } from '@/components/ui/Autocomplete';
 import { ShoppingList, ShoppingListItem as ShoppingListItemType, Item } from '@/types/shopping-list';
 import { getListByIdAction } from '@/actions/lists';
 import { getAllItemsAction } from '@/actions/items';
-import { getItemDetails } from '@/lib/utils/list-helpers';
-import { filterItemsBySearch } from '@/lib/utils/search-helpers';
-import { generateSearchSuggestions, filterSuggestions } from '@/lib/utils/search-suggestions';
+import { generateSearchSuggestions } from '@/lib/utils/search-suggestions';
 import { ListDetailClient } from './ListDetailClient';
 
 interface ShoppingListDetailPageProps {
@@ -29,27 +23,31 @@ export default async function ShoppingListDetailPage({ params }: ShoppingListDet
 
   if (!listResult.success || !listResult.data) {
     return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Typography variant="h4" sx={{ textAlign: 'center', mt: 4 }}>
-          Shopping list not found
-        </Typography>
-        <Typography variant="body1" color="textSecondary" sx={{ textAlign: 'center', mt: 2 }}>
-          {listResult.error || 'The shopping list you\'re looking for doesn\'t exist.'}
-        </Typography>
-      </Container>
+      <div style={{ padding: '2rem 0' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 1rem' }}>
+          <h1 style={{ textAlign: 'center', marginTop: '2rem', fontSize: '2rem', fontWeight: 'bold' }}>
+            Shopping list not found
+          </h1>
+          <p style={{ textAlign: 'center', marginTop: '1rem', color: '#666' }}>
+            {listResult.error || 'The shopping list you\'re looking for doesn\'t exist.'}
+          </p>
+        </div>
+      </div>
     );
   }
 
   if (!itemsResult.success || !itemsResult.data) {
     return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Typography variant="h4" sx={{ textAlign: 'center', mt: 4 }}>
-          Failed to load items
-        </Typography>
-        <Typography variant="body1" color="textSecondary" sx={{ textAlign: 'center', mt: 2 }}>
-          {itemsResult.error || 'Unable to load item data.'}
-        </Typography>
-      </Container>
+      <div style={{ padding: '2rem 0' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 1rem' }}>
+          <h1 style={{ textAlign: 'center', marginTop: '2rem', fontSize: '2rem', fontWeight: 'bold' }}>
+            Failed to load items
+          </h1>
+          <p style={{ textAlign: 'center', marginTop: '1rem', color: '#666' }}>
+            {itemsResult.error || 'Unable to load item data.'}
+          </p>
+        </div>
+      </div>
     );
   }
 
@@ -62,12 +60,10 @@ export default async function ShoppingListDetailPage({ params }: ShoppingListDet
   const allSuggestions = generateSearchSuggestions(listItems);
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <ListDetailClient 
-        list={list}
-        items={items}
-        allSuggestions={allSuggestions}
-      />
-    </Container>
+    <ListDetailClient 
+      list={list}
+      items={items}
+      allSuggestions={allSuggestions}
+    />
   );
 }

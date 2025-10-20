@@ -3,6 +3,7 @@
 import React from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
 
 const theme = createTheme({
   typography: {
@@ -43,9 +44,11 @@ interface MuiThemeProviderProps {
 
 export const MuiThemeProvider: React.FC<MuiThemeProviderProps> = ({ children }) => {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      {children}
-    </ThemeProvider>
+    <AppRouterCacheProvider options={{ key: 'css' }}>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        {children}
+      </ThemeProvider>
+    </AppRouterCacheProvider>
   );
 };

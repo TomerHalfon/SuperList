@@ -2,7 +2,9 @@
 
 import React, { useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Box, Divider } from '@mui/material';
+import { Container } from '@/components/ui/Container';
+import { Box } from '@/components/ui/Box';
+import { Divider } from '@/components/ui/Divider';
 import { ShoppingListHeader } from '@/components/features/ShoppingListHeader';
 import { ShoppingListItem } from '@/components/features/ShoppingListItem';
 import { Typography } from '@/components/ui/Typography';
@@ -94,7 +96,7 @@ export function ListDetailClient({ list, items, allSuggestions }: ListDetailClie
   const collectedItems = filteredItems.collected;
 
   return (
-    <>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
       <ShoppingListHeader list={list} onBack={handleBack} />
 
       {/* Search Field */}
@@ -180,6 +182,6 @@ export function ListDetailClient({ list, items, allSuggestions }: ListDetailClie
           </Box>
         )}
       </Box>
-    </>
+    </Container>
   );
 }
