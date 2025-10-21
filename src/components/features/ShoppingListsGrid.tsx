@@ -4,12 +4,16 @@ import { Typography } from '@/components/ui/Typography';
 import { ShoppingListCard } from './ShoppingListCard';
 import { ShoppingList } from '@/types/shopping-list';
 
+// ShoppingListsGrid component with delete functionality
+
 export interface ShoppingListsGridProps {
   lists: ShoppingList[];
+  onDeleteClick?: (listId: string) => void;
 }
 
 export const ShoppingListsGrid: React.FC<ShoppingListsGridProps> = ({ 
-  lists
+  lists,
+  onDeleteClick
 }) => {
   if (lists.length === 0) {
     return (
@@ -46,7 +50,8 @@ export const ShoppingListsGrid: React.FC<ShoppingListsGridProps> = ({
           lg={3}
         >
           <ShoppingListCard 
-            list={list} 
+            list={list}
+            onDeleteClick={onDeleteClick}
           />
         </Grid>
       ))}

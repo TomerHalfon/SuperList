@@ -26,6 +26,7 @@ let listRepository: IListRepository | null = null;
  * Get the item repository instance
  */
 export function getItemRepository(): IItemRepository {
+  console.log('STORAGE_TYPE', process.env.STORAGE_TYPE);
   if (!itemRepository) {
     const config = getStorageConfig();
     

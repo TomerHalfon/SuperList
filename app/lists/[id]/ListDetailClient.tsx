@@ -2,20 +2,23 @@
 
 import React, { useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { Delete as DeleteIcon } from '@mui/icons-material';
 import { Container } from '@/components/ui/Container';
 import { Box } from '@/components/ui/Box';
 import { Divider } from '@/components/ui/Divider';
 import { ShoppingListHeader } from '@/components/features/ShoppingListHeader';
 import { ShoppingListItem } from '@/components/features/ShoppingListItem';
+import { DeleteListDialog } from '@/components/features/DeleteListDialog';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { Typography } from '@/components/ui/Typography';
 import { Autocomplete, AutocompleteOption } from '@/components/ui/Autocomplete';
+import { Button } from '@/components/ui/Button';
 import { ShoppingList, ShoppingListItem as ShoppingListItemType, Item } from '@/types/shopping-list';
 import { getItemDetails } from '@/lib/utils/list-helpers';
 import { filterItemsBySearch } from '@/lib/utils/search-helpers';
 import { filterSuggestions } from '@/lib/utils/search-suggestions';
 import { useDebounce } from '@/hooks/useDebounce';
-import { toggleItemCollectedAction, updateListNameAction } from '@/actions/lists';
+import { toggleItemCollectedAction, updateListNameAction, deleteListAction } from '@/actions/lists';
 import { useSnackbar } from '@/components/providers/SnackbarProvider';
 
 interface ListDetailClientProps {
@@ -28,6 +31,7 @@ export function ListDetailClient({ list, items, allSuggestions }: ListDetailClie
   const router = useRouter();
   const [searchInput, setSearchInput] = useState('');
   const [selectedOption, setSelectedOption] = useState<AutocompleteOption | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const debouncedSearchInput = useDebounce(searchInput, 300);
   const { showSuccess, showError } = useSnackbar();
 
@@ -93,6 +97,31 @@ export function ListDetailClient({ list, items, allSuggestions }: ListDetailClie
       showError('Failed to update list name');
     }
   }, [list.id, showSuccess, showError]);
+
+  const handleDeleteClick = useCallback(() => {
+    setDeleteDialogOpen(true);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    try {
+      const result = await deleteListAction(list.id);
+      if (result.success) {
+        showSuccess('Shopping list deleted successfully');
+        setDeleteDialogOpen(false);
+        router.push('/');
+      } else {
+        console.error('Failed to delete list:', result.error);
+        showError(result.error || 'Failed to delete shopping list');
+      }
+    } catch (error) {
+      console.error('Error deleting list:', error);
+      showError('Failed to delete shopping list');
+    }
+  }, [list.id, showSuccess, showError, router]);
+
+  const handleDeleteCancel = useCallback(() => {
+    setDeleteDialogOpen(false);
+  }, []);
 
   // Filter items based on search
   const filteredItems = useMemo(() => {
@@ -212,6 +241,30 @@ export function ListDetailClient({ list, items, allSuggestions }: ListDetailClie
           </Box>
         )}
       </Box>
+
+      {/* Delete button at the bottom */}
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 2 }}>
+        <Button
+          onClick={handleDeleteClick}
+          variant="outlined"
+          color="error"
+          startIcon={<DeleteIcon />}
+          sx={{
+            minWidth: 200,
+            py: 1.5,
+          }}
+        >
+          Delete List
+        </Button>
+      </Box>
+
+      {/* Delete confirmation dialog */}
+      <DeleteListDialog
+        open={deleteDialogOpen}
+        listName={list.name}
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+      />
     </Container>
   );
 }

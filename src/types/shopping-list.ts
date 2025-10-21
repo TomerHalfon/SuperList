@@ -16,6 +16,7 @@ export interface ShoppingList {
   name: string;
   updatedAt: string;
   items: ShoppingListItem[];
+  deletedAt?: string;
 }
 
 export interface ItemsData {

@@ -10,6 +10,7 @@ interface ShoppingListWithItems {
   name: string;
   updated_at: string;
   created_at: string;
+  deleted_at: string | null;
   shopping_list_items: Array<{
     id: string;
     list_id: string;
@@ -41,6 +42,7 @@ export class SupabaseListRepository implements IListRepository {
           items (*)
         )
       `)
+      .is('deleted_at', null)
       .order('updated_at', { ascending: false });
 
     if (error) {
@@ -64,6 +66,7 @@ export class SupabaseListRepository implements IListRepository {
         )
       `)
       .eq('id', id)
+      .is('deleted_at', null)
       .single();
 
     if (error) {
@@ -227,12 +230,12 @@ export class SupabaseListRepository implements IListRepository {
   }
 
   /**
-   * Delete a shopping list
+   * Delete a shopping list (soft delete)
    */
   async delete(id: string): Promise<void> {
     const { error } = await this.supabase
       .from('shopping_lists')
-      .delete()
+      .update({ deleted_at: new Date().toISOString() })
       .eq('id', id);
 
     if (error) {
@@ -462,6 +465,7 @@ export class SupabaseListRepository implements IListRepository {
         )
       `)
       .ilike('name', name)
+      .is('deleted_at', null)
       .single();
 
     if (error) {
@@ -490,6 +494,7 @@ export class SupabaseListRepository implements IListRepository {
       name: data.name,
       updatedAt: data.updated_at,
       items,
+      deletedAt: data.deleted_at || undefined,
     };
   }
 
