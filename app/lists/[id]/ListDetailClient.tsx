@@ -8,6 +8,7 @@ import { Box } from '@/components/ui/Box';
 import { Divider } from '@/components/ui/Divider';
 import { ShoppingListHeader } from '@/components/features/ShoppingListHeader';
 import { ShoppingListItem } from '@/components/features/ShoppingListItem';
+import { AddItemToList } from '@/components/features/AddItemToList';
 import { DeleteListDialog } from '@/components/features/DeleteListDialog';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { Typography } from '@/components/ui/Typography';
@@ -166,12 +167,24 @@ export function ListDetailClient({ list, items, allSuggestions }: ListDetailClie
       </Box>
 
       <Box>
+        {/* Add Item Section */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+            Items to collect ({uncollectedItems.length})
+          </Typography>
+          <AddItemToList
+            listId={list.id}
+            allItems={items}
+            onItemAdded={() => {
+              // The page will be revalidated automatically by the Server Action
+              // No need to update local state
+            }}
+          />
+        </Box>
+
         {/* Uncollected items */}
         {uncollectedItems.length > 0 && (
           <Box sx={{ mb: 3 }}>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-              Items to collect ({uncollectedItems.length})
-            </Typography>
             {uncollectedItems.map((item) => {
               return (
                 <ShoppingListItem
@@ -207,8 +220,8 @@ export function ListDetailClient({ list, items, allSuggestions }: ListDetailClie
           </Box>
         )}
 
-        {/* Empty state */}
-        {list.items.length === 0 && (
+        {/* Empty state - only show when no items and no search */}
+        {list.items.length === 0 && !debouncedSearchInput && (
           <Box sx={{ textAlign: 'center', py: 8 }}>
             <Typography variant="h6" color="textSecondary">
               {(() => {
@@ -224,7 +237,7 @@ export function ListDetailClient({ list, items, allSuggestions }: ListDetailClie
               })()}
             </Typography>
             <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-              Use the search above to add your first items!
+              Use the add item field above to get started!
             </Typography>
           </Box>
         )}

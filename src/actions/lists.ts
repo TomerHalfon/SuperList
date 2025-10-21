@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { getListRepository } from '@/lib/storage';
+import { getListRepository, getItemRepository } from '@/lib/storage';
 import { validateCreateList, validateUpdateList } from '@/lib/validations/list-schemas';
 import { StorageError, ValidationError } from '@/lib/storage/interfaces';
 
@@ -11,6 +11,7 @@ export interface ActionResult<T = any> {
   data?: T;
   error?: string;
   details?: any;
+  warning?: string;
 }
 
 /**
@@ -507,6 +508,126 @@ export async function clearCompletedItemsAction(listId: string): Promise<ActionR
     return {
       success: false,
       error: 'Failed to clear completed items',
+    };
+  }
+}
+
+/**
+ * Add item to list with auto-creation if item doesn't exist
+ */
+export async function addItemToListWithAutoCreateAction(listId: string, itemName: string): Promise<ActionResult> {
+  try {
+    if (!listId) {
+      return {
+        success: false,
+        error: 'List ID is required',
+      };
+    }
+
+    if (!itemName || itemName.trim().length === 0) {
+      return {
+        success: false,
+        error: 'Item name is required',
+      };
+    }
+
+    const trimmedName = itemName.trim();
+    
+    // Get repositories
+    const listRepository = getListRepository();
+    const itemRepository = getItemRepository();
+    
+    // Check if list exists
+    const list = await listRepository.getById(listId);
+    if (!list) {
+      return {
+        success: false,
+        error: 'Shopping list not found',
+      };
+    }
+
+    // Search for existing item using contains search
+    const existingItems = await itemRepository.search(trimmedName);
+    let targetItem = existingItems.find(item => 
+      item.name.toLowerCase() === trimmedName.toLowerCase()
+    );
+
+    // If item doesn't exist, create it
+    if (!targetItem) {
+      const newItem = await itemRepository.create({
+        name: trimmedName,
+        emoji: '🛒',
+        tags: [],
+      });
+      targetItem = newItem;
+    }
+
+    // Check if item is already in the list
+    const existingListItem = list.items.find(item => item.itemId === targetItem.id);
+    if (existingListItem) {
+      // Item already exists in list - show funny warning but still add
+      const funnyMessages = [
+        `Another one? You must really love ${targetItem.name}! 🤷`,
+        `Double trouble! ${targetItem.name} added again (because why not?) 🤪`,
+        `${targetItem.name} strikes again! Added to the list... again 🔄`,
+        `Déjà vu! ${targetItem.name} is now on the list twice 👯`,
+        `Here we go again! ${targetItem.name} makes a comeback 🎭`,
+        `${targetItem.name} is back for round two! 🥊`
+      ];
+      const randomMessage = funnyMessages[Math.floor(Math.random() * funnyMessages.length)];
+      
+      // Add the item anyway
+      const updatedList = await listRepository.addItem(listId, {
+        itemId: targetItem.id,
+        quantity: 1,
+        collected: false,
+      });
+
+      revalidatePath('/');
+      revalidatePath(`/lists/${listId}`);
+      
+      return {
+        success: true,
+        data: updatedList,
+        warning: randomMessage,
+      };
+    }
+
+    // Add item to list
+    const updatedList = await listRepository.addItem(listId, {
+      itemId: targetItem.id,
+      quantity: 1,
+      collected: false,
+    });
+
+    revalidatePath('/');
+    revalidatePath(`/lists/${listId}`);
+    
+    return {
+      success: true,
+      data: updatedList,
+    };
+  } catch (error) {
+    console.error('Add item to list with auto-create error:', error);
+    
+    if (error instanceof StorageError && error.code === 'NOT_FOUND') {
+      return {
+        success: false,
+        error: 'Shopping list not found',
+      };
+    }
+    
+    if (error instanceof ValidationError) {
+      return {
+        success: false,
+        error: error.message,
+        details: error.details,
+      };
+    }
+    
+    return {
+      success: false,
+      error: 'Failed to add item to list',
     };
   }
 }
