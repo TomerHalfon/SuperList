@@ -61,3 +61,24 @@ body {
     transform: scale(0.98);
   }
 }
+
+/* Emoji picker styling to match app emoji rendering */
+.emoji-picker-react {
+  font-family: inherit !important;
+}
+
+.emoji-picker-react .emoji,
+.emoji-picker-react .emoji-picker-emoji,
+.emoji-picker-react .emoji-picker-emoji-content,
+.emoji-picker-react .emoji-picker-emoji-content span {
+  font-family: inherit !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
+
+/* Ensure emoji picker uses system emoji rendering */
+.emoji-picker-react .emoji-picker-emoji-content span {
+  font-variant-emoji: emoji !important;
+  -webkit-font-feature-settings: "emoji" !important;
+  font-feature-settings: "emoji" !important;
+}

@@ -64,12 +64,19 @@ export function ListDetailClient({ list, items, allSuggestions }: ListDetailClie
     }
   }, [list.id, showSuccess, showError]);
 
-  const handleSearchChange = useCallback((event: React.SyntheticEvent, newValue: AutocompleteOption | null) => {
-    setSelectedOption(newValue);
-    if (newValue && typeof newValue === 'object') {
-      setSearchInput(newValue.label);
-    } else {
+  const handleSearchChange = useCallback((event: React.SyntheticEvent, newValue: AutocompleteOption | AutocompleteOption[] | null) => {
+    // Handle single selection (not multiple)
+    if (Array.isArray(newValue)) {
+      // This shouldn't happen in single mode, but handle gracefully
+      setSelectedOption(null);
       setSearchInput('');
+    } else {
+      setSelectedOption(newValue);
+      if (newValue && typeof newValue === 'object') {
+        setSearchInput(newValue.label);
+      } else {
+        setSearchInput('');
+      }
     }
   }, []);
 
