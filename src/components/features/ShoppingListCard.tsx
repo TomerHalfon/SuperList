@@ -109,9 +109,6 @@ export const ShoppingListCard: React.FC<ShoppingListCardProps> = ({
                 opacity: 1,
                 transform: 'scale(1.1)',
               },
-              '&:hover': {
-                opacity: 1,
-              },
             }}
             title="Delete list"
           >

@@ -10,6 +10,7 @@ import { ShoppingListHeader } from '@/components/features/ShoppingListHeader';
 import { ShoppingListItem } from '@/components/features/ShoppingListItem';
 import { AddItemToList } from '@/components/features/AddItemToList';
 import { DeleteListDialog } from '@/components/features/DeleteListDialog';
+import { EditItemQuantityDialog } from '@/components/features/EditItemQuantityDialog';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { Typography } from '@/components/ui/Typography';
 import { Autocomplete, AutocompleteOption } from '@/components/ui/Autocomplete';
@@ -19,7 +20,7 @@ import { getItemDetails } from '@/lib/utils/list-helpers';
 import { filterItemsBySearch } from '@/lib/utils/search-helpers';
 import { filterSuggestions } from '@/lib/utils/search-suggestions';
 import { useDebounce } from '@/hooks/useDebounce';
-import { toggleItemCollectedAction, updateListNameAction, deleteListAction } from '@/actions/lists';
+import { toggleItemCollectedAction, updateListNameAction, deleteListAction, updateListItemAction } from '@/actions/lists';
 import { useSnackbar } from '@/components/providers/SnackbarProvider';
 
 interface ListDetailClientProps {
@@ -33,6 +34,8 @@ export function ListDetailClient({ list, items, allSuggestions }: ListDetailClie
   const [searchInput, setSearchInput] = useState('');
   const [selectedOption, setSelectedOption] = useState<AutocompleteOption | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<{ item: Item; currentQuantity: number } | null>(null);
   const debouncedSearchInput = useDebounce(searchInput, 300);
   const { showSuccess, showError } = useSnackbar();
 
@@ -124,6 +127,61 @@ export function ListDetailClient({ list, items, allSuggestions }: ListDetailClie
     setDeleteDialogOpen(false);
   }, []);
 
+  const handleQuantityChange = useCallback(async (itemId: string, newQuantity: number) => {
+    try {
+      const formData = new FormData();
+      formData.append('quantity', newQuantity.toString());
+      
+      const result = await updateListItemAction(list.id, itemId, formData);
+      if (result.success) {
+        showSuccess('Quantity updated');
+        // The page will be revalidated automatically by the Server Action
+      } else {
+        console.error('Failed to update quantity:', result.error);
+        showError(result.error || 'Failed to update quantity');
+      }
+    } catch (error) {
+      console.error('Error updating quantity:', error);
+      showError('Failed to update quantity');
+    }
+  }, [list.id, showSuccess, showError]);
+
+  const handleEditClick = useCallback((itemId: string, currentQuantity: number) => {
+    const item = items.find(i => i.id === itemId);
+    if (item) {
+      setEditingItem({ item, currentQuantity });
+      setEditDialogOpen(true);
+    }
+  }, [items]);
+
+  const handleEditDialogClose = useCallback(() => {
+    setEditDialogOpen(false);
+    setEditingItem(null);
+  }, []);
+
+  const handleEditDialogSave = useCallback(async (newQuantity: number) => {
+    if (!editingItem) return;
+
+    try {
+      const formData = new FormData();
+      formData.append('quantity', newQuantity.toString());
+      
+      const result = await updateListItemAction(list.id, editingItem.item.id, formData);
+      if (result.success) {
+        showSuccess('Quantity updated');
+        setEditDialogOpen(false);
+        setEditingItem(null);
+        // The page will be revalidated automatically by the Server Action
+      } else {
+        console.error('Failed to update quantity:', result.error);
+        showError(result.error || 'Failed to update quantity');
+      }
+    } catch (error) {
+      console.error('Error updating quantity:', error);
+      showError('Failed to update quantity');
+    }
+  }, [list.id, editingItem, showSuccess, showError]);
+
   // Filter items based on search
   const filteredItems = useMemo(() => {
     const allItems = list.items.map(item => {
@@ -193,6 +251,8 @@ export function ListDetailClient({ list, items, allSuggestions }: ListDetailClie
                   quantity={item.quantity}
                   collected={item.collected}
                   onToggle={handleToggleItem}
+                  onQuantityChange={handleQuantityChange}
+                  onEditClick={handleEditClick}
                 />
               );
             })}
@@ -214,6 +274,8 @@ export function ListDetailClient({ list, items, allSuggestions }: ListDetailClie
                   quantity={item.quantity}
                   collected={item.collected}
                   onToggle={handleToggleItem}
+                  onQuantityChange={handleQuantityChange}
+                  onEditClick={handleEditClick}
                 />
               );
             })}
@@ -277,6 +339,15 @@ export function ListDetailClient({ list, items, allSuggestions }: ListDetailClie
         listName={list.name}
         onConfirm={handleDeleteConfirm}
         onCancel={handleDeleteCancel}
+      />
+
+      {/* Edit quantity dialog */}
+      <EditItemQuantityDialog
+        open={editDialogOpen}
+        item={editingItem?.item || null}
+        currentQuantity={editingItem?.currentQuantity || 1}
+        onClose={handleEditDialogClose}
+        onSave={handleEditDialogSave}
       />
     </Container>
   );
