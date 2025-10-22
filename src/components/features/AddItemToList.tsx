@@ -7,6 +7,7 @@ import { Autocomplete, AutocompleteOption } from '@/components/ui/Autocomplete';
 import { Item } from '@/types/shopping-list';
 import { useAddItemToListWithAutoCreate } from '@/hooks/useListMutations';
 import { useSnackbar } from '@/components/providers/SnackbarProvider';
+import { useTranslations } from 'next-intl';
 
 export interface AddItemToListProps {
   listId: string;
@@ -19,6 +20,7 @@ export const AddItemToList: React.FC<AddItemToListProps> = ({
   allItems,
   onItemAdded,
 }) => {
+  const t = useTranslations('items');
   const [searchInput, setSearchInput] = useState('');
   const [selectedOption, setSelectedOption] = useState<AutocompleteOption | null>(null);
   const { showSuccess, showError, showWarning } = useSnackbar();
@@ -86,14 +88,14 @@ export const AddItemToList: React.FC<AddItemToListProps> = ({
       if (result.warning) {
         showWarning(result.warning);
       } else {
-        showSuccess(`${searchInput.trim()} added to the list!`);
+        showSuccess(`${searchInput.trim()} ${t('itemAddedToList')}`);
       }
       
       // Notify parent component
       onItemAdded?.();
     } catch (error) {
       console.error('Error adding item to list:', error);
-      showError(error instanceof Error ? error.message : 'Failed to add item to list');
+      showError(error instanceof Error ? error.message : t('failedToAddItem'));
     }
   }, [listId, searchInput, addItemMutation, showSuccess, showError, showWarning, onItemAdded]);
 
@@ -138,14 +140,14 @@ export const AddItemToList: React.FC<AddItemToListProps> = ({
       <Box sx={{ flexGrow: 1 }}>
         <Autocomplete
           fullWidth
-          placeholder="Add an item to your list..."
+          placeholder={t('addItemToList')}
           value={selectedOption}
           onChange={handleSearchChange}
           onInputChange={handleInputChange}
           options={filteredOptions}
           size="small"
-          noOptionsText="Type to search or add a new item"
-          loadingText="Loading..."
+          noOptionsText={t('typeToSearch')}
+          loadingText={t('loading')}
           disabled={addItemMutation.isPending}
           onKeyDown={handleKeyPress}
           freeSolo={true}

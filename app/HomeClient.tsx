@@ -11,9 +11,11 @@ import { DeleteListDialog } from '@/components/features/DeleteListDialog';
 import { ShoppingList } from '@/types/shopping-list';
 import { useLists, useCreateList, useDeleteList } from '@/hooks/useLists';
 import { useSnackbar } from '@/components/providers/SnackbarProvider';
+import { useTranslations } from 'next-intl';
 import { Add as AddIcon } from '@mui/icons-material';
 
 export function HomeClient() {
+  const t = useTranslations('lists');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [listToDelete, setListToDelete] = useState<ShoppingList | null>(null);
   const { showSuccess, showError } = useSnackbar();
@@ -25,11 +27,11 @@ export function HomeClient() {
 
   const handleCreateList = async () => {
     try {
-      await createListMutation.mutateAsync('New List');
-      showSuccess('Shopping list created successfully');
+      await createListMutation.mutateAsync(t('newList'));
+      showSuccess(t('listCreatedSuccessfully'));
     } catch (error) {
       console.error('Error creating list:', error);
-      showError(error instanceof Error ? error.message : 'Failed to create shopping list');
+      showError(error instanceof Error ? error.message : t('failedToCreateList'));
     }
   };
 
@@ -46,12 +48,12 @@ export function HomeClient() {
     
     try {
       await deleteListMutation.mutateAsync(listToDelete.id);
-      showSuccess('Shopping list deleted successfully');
+      showSuccess(t('listDeletedSuccessfully'));
       setDeleteDialogOpen(false);
       setListToDelete(null);
     } catch (error) {
       console.error('Error deleting list:', error);
-      showError(error instanceof Error ? error.message : 'Failed to delete shopping list');
+      showError(error instanceof Error ? error.message : t('failedToDeleteList'));
     }
   };
 
@@ -71,10 +73,10 @@ export function HomeClient() {
       <Container maxWidth="lg" sx={{ py: 4 }}>
         <Box sx={{ textAlign: 'center', py: 8 }}>
           <Typography variant="h6" color="error">
-            Failed to load shopping lists
+            {t('failedToLoadLists')}
           </Typography>
           <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-            {error instanceof Error ? error.message : 'An error occurred'}
+            {error instanceof Error ? error.message : t('anErrorOccurred')}
           </Typography>
         </Box>
       </Container>

@@ -10,9 +10,11 @@ import { Alert } from '@/components/ui/Alert';
 import { Divider } from '@/components/ui/Divider';
 import { signUpWithEmailAction } from '@/actions/auth';
 import { signInWithOAuth } from '@/lib/auth/auth-helpers';
+import { useTranslations } from 'next-intl';
 import GoogleIcon from '@mui/icons-material/Google';
 
 export const SignupForm: React.FC = () => {
+  const t = useTranslations('auth');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -54,7 +56,7 @@ export const SignupForm: React.FC = () => {
       <form onSubmit={handleSubmit}>
         <Stack spacing={3}>
           <Typography variant="h4" align="center" sx={{ mb: 2 }}>
-            Create Account
+            {t('createAccount')}
           </Typography>
 
           {error && (
@@ -64,7 +66,7 @@ export const SignupForm: React.FC = () => {
           )}
 
           <TextField
-            label="Email"
+            label={t('email')}
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -75,7 +77,7 @@ export const SignupForm: React.FC = () => {
           />
 
           <TextField
-            label="Password"
+            label={t('password')}
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -83,11 +85,11 @@ export const SignupForm: React.FC = () => {
             fullWidth
             autoComplete="new-password"
             disabled={isPending || isOAuthLoading}
-            helperText="Must be at least 6 characters"
+            helperText={t('mustBeAtLeast6Chars')}
           />
 
           <TextField
-            label="Confirm Password"
+            label={t('confirmPassword')}
             type="password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
@@ -104,7 +106,7 @@ export const SignupForm: React.FC = () => {
             disabled={isPending || isOAuthLoading}
             size="large"
           >
-            {isPending ? 'Creating account...' : 'Sign Up'}
+            {isPending ? t('creatingAccount') : t('signUp')}
           </Button>
 
           <Divider sx={{ my: 2 }}>OR</Divider>
@@ -118,7 +120,7 @@ export const SignupForm: React.FC = () => {
             onClick={handleGoogleSignUp}
             disabled={isPending || isOAuthLoading}
           >
-            {isOAuthLoading ? 'Redirecting...' : 'Sign up with Google'}
+            {isOAuthLoading ? t('redirecting') : t('signInWithGoogle')}
           </Button>
         </Stack>
       </form>

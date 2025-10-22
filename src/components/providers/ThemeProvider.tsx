@@ -58,7 +58,6 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     theme,
     setTheme,
     availableThemes: THEME_MODES,
-    themeInfo: THEME_INFO,
   };
 
   // Don't render children until theme is initialized to prevent flash

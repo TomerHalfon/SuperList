@@ -9,6 +9,7 @@ import { Progress } from '@/components/ui/Progress';
 import { ShoppingList } from '@/types/shopping-list';
 import { calculateCompletionPercentage } from '@/lib/utils/list-calculator';
 import { formatRelativeDate } from '@/lib/utils/date-formatter';
+import { useTranslations, useLocale } from 'next-intl';
 import { z } from 'zod';
 
 const listNameSchema = z.string().min(1, 'Name is required').max(100, 'Name too long');
@@ -24,6 +25,8 @@ export const ShoppingListHeader: React.FC<ShoppingListHeaderProps> = ({
   onBack,
   onNameUpdate,
 }) => {
+  const t = useTranslations('lists');
+  const locale = useLocale();
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(list.name);
   const [error, setError] = useState<string | null>(null);
@@ -160,7 +163,7 @@ export const ShoppingListHeader: React.FC<ShoppingListHeaderProps> = ({
         <Box sx={{ mb: 2 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
             <Typography variant="body2" color="textSecondary">
-              Progress
+              {t('progress')}
             </Typography>
             <Typography variant="body2" color="textSecondary">
               {completionPercentage}%
@@ -178,7 +181,7 @@ export const ShoppingListHeader: React.FC<ShoppingListHeaderProps> = ({
         </Box>
 
         <Typography variant="body2" color="textSecondary">
-          Updated {formatRelativeDate(list.updatedAt)} • {list.items.filter(item => item.collected).length} of {list.items.length} items collected
+          {t('updated')} {formatRelativeDate(list.updatedAt, locale)} • {list.items.filter(item => item.collected).length} of {list.items.length} {t('itemsCollected')}
         </Typography>
       </Container>
     </Box>

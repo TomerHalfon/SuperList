@@ -16,6 +16,13 @@ export interface ThemeInfo {
   category: 'standard' | 'nature' | 'specialty';
 }
 
+export interface LocalizedThemeInfo {
+  id: ThemeMode;
+  name: string;
+  description: string;
+  category: 'standard' | 'nature' | 'specialty';
+}
+
 export const THEME_MODES: ThemeMode[] = [
   'light',
   'dark', 

@@ -1,0 +1,176 @@
+{
+  "auth": {
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "signOut": "Sign Out",
+    "signingIn": "Signing in...",
+    "signingOut": "Signing out...",
+    "creatingAccount": "Creating account...",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "rememberMe": "Remember me",
+    "createAccount": "Create Account",
+    "dontHaveAccount": "Don't have an account?",
+    "alreadyHaveAccount": "Already have an account?",
+    "signInWithGoogle": "Sign in with Google",
+    "redirecting": "Redirecting...",
+    "signedInAs": "Signed in as",
+    "mustBeAtLeast6Chars": "Must be at least 6 characters"
+  },
+  "validation": {
+    "emailRequired": "Email is required",
+    "invalidEmail": "Invalid email address",
+    "passwordRequired": "Password is required",
+    "passwordMinLength": "Password must be at least 6 characters",
+    "passwordMaxLength": "Password must be less than 72 characters",
+    "confirmPasswordRequired": "Please confirm your password",
+    "passwordsDontMatch": "Passwords don't match",
+    "nameRequired": "Name is required",
+    "nameTooLong": "Name too long",
+    "idRequired": "ID is required",
+    "emojiRequired": "Emoji is required",
+    "emojiTooLong": "Emoji too long",
+    "tagCannotBeEmpty": "Tag cannot be empty",
+    "tooManyTags": "Too many tags",
+    "itemIdRequired": "Item ID is required",
+    "quantityMin": "Quantity must be at least 1",
+    "quantityMax": "Quantity too high",
+    "quantityCannotExceed": "Quantity cannot exceed 999",
+    "invalidDateFormat": "Invalid date format",
+    "tooManyItems": "Too many items in list",
+    "pleaseEnterValidNumber": "Please enter a valid number"
+  },
+  "app": {
+    "title": "SuperList",
+    "subtitle": "Your Shopping Lists Dashboard",
+    "description": "Manage your shopping lists with ease"
+  },
+  "navigation": {
+    "backToLists": "Back to Lists",
+    "editListName": "Edit list name",
+    "deleteList": "Delete List"
+  },
+  "lists": {
+    "noListsYet": "No shopping lists yet",
+    "createFirstList": "Create your first shopping list to get started!",
+    "newList": "New List",
+    "progress": "Progress",
+    "updated": "Updated",
+    "itemsCollected": "items collected",
+    "deleteList": "Delete List",
+    "listCreatedSuccessfully": "Shopping list created successfully",
+    "listDeletedSuccessfully": "Shopping list deleted successfully",
+    "failedToCreateList": "Failed to create shopping list",
+    "failedToDeleteList": "Failed to delete shopping list",
+    "failedToLoadLists": "Failed to load shopping lists",
+    "listNameUpdated": "List name updated",
+    "failedToUpdateListName": "Failed to update list name"
+  },
+  "items": {
+    "itemsToCollect": "Items to collect",
+    "collectedItems": "Collected items",
+    "addItemToList": "Add an item to your list...",
+    "searchItems": "Search items by name or tags (e.g., dairy, breakfast)...",
+    "typeToSearch": "Type to search or add a new item",
+    "loading": "Loading...",
+    "noSuggestionsFound": "No suggestions found",
+    "loadingSuggestions": "Loading suggestions...",
+    "noItemsFound": "No items found",
+    "tryDifferentTerms": "Try searching with different terms or clear the search to see all items.",
+    "useAddItemField": "Use the add item field above to get started!",
+    "itemAddedToList": "added to the list!",
+    "failedToAddItem": "Failed to add item to list",
+    "failedToUpdateItem": "Failed to update item status",
+    "failedToUpdateQuantity": "Failed to update quantity",
+    "quantityUpdated": "Quantity updated",
+    "itemSettingsUpdated": "Item settings updated successfully",
+    "failedToUpdateItemSettings": "Failed to update item settings"
+  },
+  "dialogs": {
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "deleteList": "Delete List",
+    "deleteShoppingList": "Delete Shopping List",
+    "youreAboutToDelete": "You're about to delete",
+    "editQuantity": "Edit Quantity",
+    "advancedSettings": "Advanced Settings",
+    "emoji": "Emoji",
+    "tags": "Tags",
+    "quantity": "Quantity",
+    "enterQuantityBetween": "Enter a quantity between 1 and 999",
+    "selectOrAddTags": "Select or add tags...",
+    "typeToAddNewTag": "Type to add a new tag",
+    "loadingTags": "Loading tags...",
+    "selectAnEmoji": "Select an emoji"
+  },
+  "emptyStates": {
+    "timeToFillUp": "Time to fill this up! Your wallet is safe... for now 🛒",
+    "emptierThanFridge": "This list is emptier than my fridge on Monday morning 🤷",
+    "addSomeItems": "Go ahead, add some items! Your shopping cart is feeling lonely 🛍️",
+    "channelShoppingNinja": "Empty list detected! Time to channel your inner shopping ninja 🥷",
+    "futureSelfWillThank": "Nothing here yet! Your future self will thank you for adding items 📝",
+    "shoppingCartLonely": "This list is so empty, even the shopping cart is lonely 🛒💔"
+  },
+  "deleteWarnings": {
+    "shoppingCartGraveyard": "Are you sure? This list will go to the shopping cart graveyard! ⚰️🛒",
+    "futureSelfRegret": "Delete this list? Your future self might regret this decision! 😱",
+    "unlikeImpulsePurchases": "Warning: Deleted lists cannot be un-deleted. Unlike your impulse purchases. 🛍️",
+    "meetItsMaker": "This list is about to meet its maker... are you absolutely sure? 🙏",
+    "digitalVoid": "Once deleted, this list joins the digital void. No refunds! 🕳️",
+    "throwingAwayCart": "Delete this list? It's like throwing away a perfectly good shopping cart! 🛒💔",
+    "listHasFeelings": "Are you sure? This list has feelings too! (Well, not really, but still...) 😢",
+    "emptyFridgeSyndrome": "Warning: Deleting this list may cause temporary sadness and empty fridge syndrome! 🥛",
+    "digitalDust": "This list is about to become one with the digital dust. Proceed? ✨",
+    "groceryStoreMiss": "Delete this list? Your grocery store will miss the business! 🏪"
+  },
+  "errors": {
+    "anErrorOccurred": "An error occurred",
+    "failedToLoadShoppingList": "Failed to load shopping list",
+    "shoppingListNotFound": "Shopping list not found"
+  },
+  "themes": {
+    "categories": {
+      "standard": "Standard",
+      "nature": "Nature",
+      "specialty": "Specialty"
+    },
+    "light": {
+      "name": "Light",
+      "description": "Clean and bright default theme"
+    },
+    "dark": {
+      "name": "Dark", 
+      "description": "Easy on the eyes dark theme"
+    },
+    "purple-night": {
+      "name": "Purple Night",
+      "description": "Deep purple and violet tones"
+    },
+    "ocean-blue": {
+      "name": "Ocean Blue",
+      "description": "Calming blue and teal ocean colors"
+    },
+    "sunset-orange": {
+      "name": "Sunset Orange",
+      "description": "Warm orange and coral sunset hues"
+    },
+    "forest-green": {
+      "name": "Forest Green",
+      "description": "Natural green and earth tones"
+    },
+    "high-contrast": {
+      "name": "High Contrast",
+      "description": "Maximum contrast for accessibility"
+    },
+    "cyberpunk": {
+      "name": "Cyberpunk",
+      "description": "Neon pink and cyan futuristic vibes"
+    },
+    "retro": {
+      "name": "Retro",
+      "description": "Vintage 80s warm pastel colors"
+    }
+  }
+}

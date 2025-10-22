@@ -1,14 +1,44 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import createIntlMiddleware from 'next-intl/middleware';
+import { locales, type Locale } from '@/i18n';
+import { getLocale, setLocaleCookie } from '@/lib/i18n/request';
+
+// Create the intl middleware
+const intlMiddleware = createIntlMiddleware({
+  locales,
+  defaultLocale: 'en',
+  localePrefix: 'never' // Don't add locale prefix to URLs
+});
 
 /**
- * Middleware to protect routes and handle authentication
+ * Middleware to handle internationalization and authentication
  */
 export async function middleware(request: NextRequest) {
+  // Handle internationalization first
+  const intlResponse = intlMiddleware(request);
+  
+  // Get the locale for this request
+  const locale = getLocale(request);
+  
+  // Set locale cookie if not already set
+  if (!request.cookies.get('locale')) {
+    intlResponse.cookies.set('locale', locale, {
+      path: '/',
+      maxAge: 31536000, // 1 year
+      sameSite: 'lax'
+    });
+  }
+
   let response = NextResponse.next({
     request: {
       headers: request.headers,
     },
+  });
+
+  // Copy cookies from intl response
+  intlResponse.cookies.getAll().forEach(cookie => {
+    response.cookies.set(cookie.name, cookie.value, cookie);
   });
 
   const supabase = createServerClient(

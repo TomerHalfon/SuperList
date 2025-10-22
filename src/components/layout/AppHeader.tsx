@@ -4,22 +4,30 @@ import React, { useEffect, useState } from 'react';
 import { Box } from '@/components/ui/Box';
 import { Typography } from '@/components/ui/Typography';
 import { ThemeSwitcher } from '@/components/features/ThemeSwitcher';
+import { LanguageSwitcher } from '@/components/features/LanguageSwitcher';
 import { UserMenu } from '@/components/features/auth/UserMenu';
 import { onAuthStateChange } from '@/lib/auth/auth-helpers';
+import { useTranslations } from 'next-intl';
 import type { User } from '@/types/auth';
 
 interface AppHeaderProps {
   title?: string;
   subtitle?: string;
   showThemeSwitcher?: boolean;
+  showLanguageSwitcher?: boolean;
 }
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
-  title = 'SuperList',
-  subtitle = 'Your Shopping Lists Dashboard',
+  title,
+  subtitle,
   showThemeSwitcher = true,
+  showLanguageSwitcher = true,
 }) => {
+  const t = useTranslations('app');
   const [user, setUser] = useState<User | null>(null);
+  
+  const displayTitle = title || t('title');
+  const displaySubtitle = subtitle || t('subtitle');
 
   useEffect(() => {
     // Subscribe to auth state changes to get user
@@ -57,7 +65,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             lineHeight: 1.2,
           }}
         >
-          {title}
+          {displayTitle}
         </Typography>
         <Typography 
           variant="h6" 
@@ -67,7 +75,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             lineHeight: 1.3,
           }}
         >
-          {subtitle}
+          {displaySubtitle}
         </Typography>
       </Box>
       
@@ -79,6 +87,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         alignItems: 'center',
         gap: 1,
       }}>
+        {showLanguageSwitcher && <LanguageSwitcher />}
         {showThemeSwitcher && <ThemeSwitcher />}
         {user && <UserMenu user={user} />}
       </Box>

@@ -7,6 +7,7 @@ import { Box } from '@/components/ui/Box';
 import { Typography } from '@/components/ui/Typography';
 import { Divider } from '@/components/ui/Divider';
 import { signOutAction } from '@/actions/auth';
+import { useTranslations } from 'next-intl';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import LogoutIcon from '@mui/icons-material/Logout';
 import MenuItem from '@mui/material/MenuItem';
@@ -18,6 +19,7 @@ interface UserMenuProps {
 }
 
 export const UserMenu: React.FC<UserMenuProps> = ({ user }) => {
+  const t = useTranslations('auth');
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [isPending, startTransition] = useTransition();
   const open = Boolean(anchorEl);
@@ -70,7 +72,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user }) => {
       >
         <Box sx={{ px: 2, py: 1.5 }}>
           <Typography variant="body2" color="textSecondary">
-            Signed in as
+            {t('signedInAs')}
           </Typography>
           <Typography variant="body1" sx={{ fontWeight: 500, wordBreak: 'break-all' }}>
             {user.email}
@@ -83,7 +85,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user }) => {
           <ListItemIcon>
             <LogoutIcon fontSize="small" />
           </ListItemIcon>
-          {isPending ? 'Signing out...' : 'Sign Out'}
+          {isPending ? t('signingOut') : t('signOut')}
         </MenuItem>
       </Menu>
     </>

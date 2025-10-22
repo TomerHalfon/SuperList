@@ -9,6 +9,7 @@ import { IconButton } from '@/components/ui/IconButton';
 import { ShoppingList } from '@/types/shopping-list';
 import { calculateCompletionPercentage } from '@/lib/utils/list-calculator';
 import { formatRelativeDate } from '@/lib/utils/date-formatter';
+import { useTranslations, useLocale } from 'next-intl';
 
 export interface ShoppingListCardProps {
   list: ShoppingList;
@@ -19,6 +20,8 @@ export const ShoppingListCard: React.FC<ShoppingListCardProps> = ({
   list,
   onDeleteClick
 }) => {
+  const t = useTranslations('lists');
+  const locale = useLocale();
   const completionPercentage = calculateCompletionPercentage(list.items);
 
   const handleDeleteClick = (e: React.MouseEvent) => {
@@ -61,13 +64,13 @@ export const ShoppingListCard: React.FC<ShoppingListCardProps> = ({
             color="textSecondary"
             sx={{ mb: 2 }}
           >
-            Updated {formatRelativeDate(list.updatedAt)}
+            {t('updated')} {formatRelativeDate(list.updatedAt, locale)}
           </Typography>
           
           <Box sx={{ mb: 1 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
               <Typography variant="caption" color="textSecondary">
-                Progress
+                {t('progress')}
               </Typography>
               <Typography variant="caption" color="textSecondary">
                 {completionPercentage}%
@@ -85,11 +88,11 @@ export const ShoppingListCard: React.FC<ShoppingListCardProps> = ({
           </Box>
           
           <Typography variant="caption" color="textSecondary">
-            {list.items.filter(item => item.collected).length} of {list.items.length} items collected
+            {list.items.filter(item => item.collected).length} of {list.items.length} {t('itemsCollected')}
           </Typography>
         </CardContent>
         
-        {/* Delete button - positioned absolutely in top-right corner of the card */}
+        {/* Delete button - positioned absolutely in top corner of the card (right for LTR, left for RTL) */}
         {onDeleteClick && (
           <IconButton
             onClick={handleDeleteClick}
@@ -97,7 +100,7 @@ export const ShoppingListCard: React.FC<ShoppingListCardProps> = ({
             sx={{
               position: 'absolute',
               top: 8,
-              right: 8,
+              [locale === 'he' ? 'left' : 'right']: 8,
               backgroundColor: 'background.paper',
               boxShadow: 2,
               opacity: 0.7,
@@ -110,7 +113,7 @@ export const ShoppingListCard: React.FC<ShoppingListCardProps> = ({
                 transform: 'scale(1.1)',
               },
             }}
-            title="Delete list"
+            title={t('deleteList')}
           >
             <DeleteIcon fontSize="small" />
           </IconButton>

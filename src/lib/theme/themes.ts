@@ -275,4 +275,15 @@ export const themes: Record<ThemeMode, ReturnType<typeof createTheme>> = {
   }),
 };
 
-export const getTheme = (mode: ThemeMode) => themes[mode];
+export const getTheme = (mode: ThemeMode, isRTL: boolean = false) => {
+  const theme = themes[mode];
+  
+  if (isRTL) {
+    return createTheme({
+      ...theme,
+      direction: 'rtl',
+    });
+  }
+  
+  return theme;
+};

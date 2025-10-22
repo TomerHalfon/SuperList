@@ -3,6 +3,7 @@ import { Grid } from '@/components/ui/Grid';
 import { Typography } from '@/components/ui/Typography';
 import { ShoppingListCard } from './ShoppingListCard';
 import { ShoppingList } from '@/types/shopping-list';
+import { useTranslations } from 'next-intl';
 
 // ShoppingListsGrid component with delete functionality
 
@@ -15,6 +16,8 @@ export const ShoppingListsGrid: React.FC<ShoppingListsGridProps> = ({
   lists,
   onDeleteClick
 }) => {
+  const t = useTranslations('lists');
+  
   if (lists.length === 0) {
     return (
       <Grid container justifyContent="center" sx={{ py: 8 }}>
@@ -25,14 +28,14 @@ export const ShoppingListsGrid: React.FC<ShoppingListsGridProps> = ({
             align="center"
             sx={{ mb: 2 }}
           >
-            No shopping lists yet
+            {t('noListsYet')}
           </Typography>
           <Typography 
             variant="body2" 
             color="textSecondary" 
             align="center"
           >
-            Create your first shopping list to get started!
+            {t('createFirstList')}
           </Typography>
         </Grid>
       </Grid>

@@ -3,29 +3,19 @@
 import React, { useState } from 'react';
 import { IconButton, Menu, MenuItem, ListItemIcon, ListItemText, Box } from '@mui/material';
 import { Palette } from '@mui/icons-material';
+import { useTranslations } from 'next-intl';
 import { useTheme } from '@/hooks/useTheme';
 import { ThemeMode } from '@/types/theme';
-
-// Theme color gradients for the circular preview
-const getThemeGradient = (theme: ThemeMode): string => {
-  const gradients: Record<ThemeMode, string> = {
-    'light': 'linear-gradient(135deg, #1976d2 0%, #dc004e 100%)',
-    'dark': 'linear-gradient(135deg, #90caf9 0%, #f48fb1 100%)',
-    'purple-night': 'linear-gradient(135deg, #9c27b0 0%, #e91e63 100%)',
-    'ocean-blue': 'linear-gradient(135deg, #0277bd 0%, #00acc1 100%)',
-    'sunset-orange': 'linear-gradient(135deg, #ff6f00 0%, #ff5722 100%)',
-    'forest-green': 'linear-gradient(135deg, #2e7d32 0%, #558b2f 100%)',
-    'high-contrast': 'linear-gradient(135deg, #000000 0%, #ffffff 100%)',
-    'cyberpunk': 'linear-gradient(135deg, #ff0080 0%, #00ffff 100%)',
-    'retro': 'linear-gradient(135deg, #ff6b9d 0%, #4fc3f7 100%)',
-  };
-  return gradients[theme];
-};
+import { getAllLocalizedThemeInfo, getThemeGradient } from '@/lib/utils/theme-helpers';
 
 export const ThemeSwitcher: React.FC = () => {
-  const { theme, setTheme, availableThemes, themeInfo } = useTheme();
+  const { theme, setTheme, availableThemes } = useTheme();
+  const t = useTranslations();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
+  
+  // Get localized theme information
+  const localizedThemeInfo = getAllLocalizedThemeInfo(t);
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -108,8 +98,8 @@ export const ThemeSwitcher: React.FC = () => {
               />
             </ListItemIcon>
             <ListItemText
-              primary={themeInfo[themeId].name}
-              secondary={themeInfo[themeId].description}
+              primary={localizedThemeInfo[themeId].name}
+              secondary={localizedThemeInfo[themeId].description}
               primaryTypographyProps={{
                 fontSize: '0.875rem',
                 fontWeight: theme === themeId ? 600 : 400,

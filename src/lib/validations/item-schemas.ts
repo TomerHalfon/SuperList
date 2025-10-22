@@ -1,5 +1,41 @@
 import { z } from 'zod';
 
+/**
+ * Create localized schemas
+ */
+export const createItemSchema = (messages: Record<string, string>) => {
+  return z.object({
+    id: z.string().min(1, messages.idRequired || 'ID is required'),
+    name: z.string().min(1, messages.nameRequired || 'Name is required').max(100, messages.nameTooLong || 'Name too long'),
+    emoji: z.string().min(1, messages.emojiRequired || 'Emoji is required').max(10, messages.emojiTooLong || 'Emoji too long'),
+    tags: z.array(z.string().min(1, messages.tagCannotBeEmpty || 'Tag cannot be empty')).max(20, messages.tooManyTags || 'Too many tags'),
+  });
+};
+
+export const createCreateItemSchema = (messages: Record<string, string>) => {
+  return z.object({
+    name: z.string().min(1, messages.nameRequired || 'Name is required').max(100, messages.nameTooLong || 'Name too long'),
+    emoji: z.string().min(1, messages.emojiRequired || 'Emoji is required').max(10, messages.emojiTooLong || 'Emoji too long'),
+    tags: z.array(z.string().min(1, messages.tagCannotBeEmpty || 'Tag cannot be empty')).max(20, messages.tooManyTags || 'Too many tags'),
+  });
+};
+
+export const createUpdateItemSchema = (messages: Record<string, string>) => {
+  return z.object({
+    name: z.string().min(1, messages.nameRequired || 'Name is required').max(100, messages.nameTooLong || 'Name too long').optional(),
+    emoji: z.string().min(1, messages.emojiRequired || 'Emoji is required').max(10, messages.emojiTooLong || 'Emoji too long').optional(),
+    tags: z.array(z.string().min(1, messages.tagCannotBeEmpty || 'Tag cannot be empty')).max(20, messages.tooManyTags || 'Too many tags').optional(),
+  });
+};
+
+export const createShoppingListItemSchema = (messages: Record<string, string>) => {
+  return z.object({
+    itemId: z.string().min(1, messages.itemIdRequired || 'Item ID is required'),
+    quantity: z.number().int().min(1, messages.quantityMin || 'Quantity must be at least 1').max(999, messages.quantityMax || 'Quantity too high'),
+    collected: z.boolean(),
+  });
+};
+
 // Base item schema
 export const itemSchema = z.object({
   id: z.string().min(1, 'ID is required'),
@@ -9,10 +45,10 @@ export const itemSchema = z.object({
 });
 
 // Create item schema (without ID)
-export const createItemSchema = itemSchema.omit({ id: true });
+export const createItemSchemaStatic = itemSchema.omit({ id: true });
 
 // Update item schema (all fields optional except ID)
-export const updateItemSchema = itemSchema.partial().omit({ id: true });
+export const updateItemSchemaStatic = itemSchema.partial().omit({ id: true });
 
 // Shopping list item schema
 export const shoppingListItemSchema = z.object({
@@ -32,11 +68,11 @@ export function validateItem(data: unknown) {
 }
 
 export function validateCreateItem(data: unknown) {
-  return createItemSchema.parse(data);
+  return createItemSchemaStatic.parse(data);
 }
 
 export function validateUpdateItem(data: unknown) {
-  return updateItemSchema.parse(data);
+  return updateItemSchemaStatic.parse(data);
 }
 
 export function validateShoppingListItem(data: unknown) {
@@ -49,7 +85,7 @@ export function validateItemsData(data: unknown) {
 
 // Type exports
 export type ItemInput = z.infer<typeof itemSchema>;
-export type CreateItemInput = z.infer<typeof createItemSchema>;
-export type UpdateItemInput = z.infer<typeof updateItemSchema>;
+export type CreateItemInput = z.infer<typeof createItemSchemaStatic>;
+export type UpdateItemInput = z.infer<typeof updateItemSchemaStatic>;
 export type ShoppingListItemInput = z.infer<typeof shoppingListItemSchema>;
 export type ItemsDataInput = z.infer<typeof itemsDataSchema>;

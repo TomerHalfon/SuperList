@@ -3,6 +3,7 @@ import { Delete as DeleteIcon } from '@mui/icons-material';
 import { Dialog, DialogTitle, DialogContent, DialogActions } from '@/components/ui/Dialog';
 import { Typography } from '@/components/ui/Typography';
 import { Button } from '@/components/ui/Button';
+import { useTranslations } from 'next-intl';
 
 export interface DeleteListDialogProps {
   open: boolean;
@@ -11,18 +12,18 @@ export interface DeleteListDialogProps {
   onCancel: () => void;
 }
 
-// Pool of funny warning messages
-const funnyMessages = [
-  "Are you sure? This list will go to the shopping cart graveyard! ⚰️🛒",
-  "Delete this list? Your future self might regret this decision! 😱",
-  "Warning: Deleted lists cannot be un-deleted. Unlike your impulse purchases. 🛍️",
-  "This list is about to meet its maker... are you absolutely sure? 🙏",
-  "Once deleted, this list joins the digital void. No refunds! 🕳️",
-  "Delete this list? It's like throwing away a perfectly good shopping cart! 🛒💔",
-  "Are you sure? This list has feelings too! (Well, not really, but still...) 😢",
-  "Warning: Deleting this list may cause temporary sadness and empty fridge syndrome! 🥛",
-  "This list is about to become one with the digital dust. Proceed? ✨",
-  "Delete this list? Your grocery store will miss the business! 🏪",
+// Pool of funny warning messages - will be replaced with translations
+const getFunnyMessages = (t: any) => [
+  t('shoppingCartGraveyard'),
+  t('futureSelfRegret'),
+  t('unlikeImpulsePurchases'),
+  t('meetItsMaker'),
+  t('digitalVoid'),
+  t('throwingAwayCart'),
+  t('listHasFeelings'),
+  t('emptyFridgeSyndrome'),
+  t('digitalDust'),
+  t('groceryStoreMiss'),
 ];
 
 export const DeleteListDialog: React.FC<DeleteListDialogProps> = ({
@@ -31,7 +32,11 @@ export const DeleteListDialog: React.FC<DeleteListDialogProps> = ({
   onConfirm,
   onCancel,
 }) => {
+  const t = useTranslations('dialogs');
+  const tWarnings = useTranslations('deleteWarnings');
+  
   // Get a random funny message
+  const funnyMessages = getFunnyMessages(tWarnings);
   const randomMessage = funnyMessages[Math.floor(Math.random() * funnyMessages.length)];
 
   return (
@@ -43,12 +48,12 @@ export const DeleteListDialog: React.FC<DeleteListDialogProps> = ({
     >
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <DeleteIcon color="error" />
-        Delete Shopping List
+        {t('deleteShoppingList')}
       </DialogTitle>
       
       <DialogContent>
         <Typography variant="body1" sx={{ mb: 2 }}>
-          You're about to delete <strong>"{listName}"</strong>
+          {t('youreAboutToDelete')} <strong>"{listName}"</strong>
         </Typography>
         
         <Typography variant="body2" color="textSecondary" sx={{ fontStyle: 'italic' }}>
@@ -62,7 +67,7 @@ export const DeleteListDialog: React.FC<DeleteListDialogProps> = ({
           onClick={onCancel}
           color="inherit"
         >
-          Cancel
+          {t('cancel')}
         </Button>
         <Button
           variant="contained"
@@ -70,7 +75,7 @@ export const DeleteListDialog: React.FC<DeleteListDialogProps> = ({
           color="error"
           startIcon={<DeleteIcon />}
         >
-          Delete List
+          {t('deleteList')}
         </Button>
       </DialogActions>
     </Dialog>

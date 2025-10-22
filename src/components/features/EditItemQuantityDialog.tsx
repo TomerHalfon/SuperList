@@ -12,6 +12,7 @@ import { updateItemAction } from '@/actions/items';
 import { extractUniqueTags } from '@/lib/utils/tag-helpers';
 import { useSnackbar } from '@/components/providers/SnackbarProvider';
 import { useTheme } from '@/hooks/useTheme';
+import { useTranslations } from 'next-intl';
 import EmojiPicker, { SkinTonePickerLocation, Theme } from 'emoji-picker-react';
 
 export interface EditItemQuantityDialogProps {
@@ -29,6 +30,9 @@ export const EditItemQuantityDialog: React.FC<EditItemQuantityDialogProps> = ({
   onClose,
   onSave,
 }) => {
+  const t = useTranslations('dialogs');
+  const tValidation = useTranslations('validation');
+  const tItems = useTranslations('items');
   const [quantity, setQuantity] = useState(currentQuantity.toString());
   const [error, setError] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -125,15 +129,15 @@ export const EditItemQuantityDialog: React.FC<EditItemQuantityDialogProps> = ({
     const num = parseInt(value, 10);
     
     if (isNaN(num) || value.trim() === '') {
-      return 'Please enter a valid number';
+      return tValidation('pleaseEnterValidNumber');
     }
     
     if (num < 1) {
-      return 'Quantity must be at least 1';
+      return tValidation('quantityMin');
     }
     
     if (num > 999) {
-      return 'Quantity cannot exceed 999';
+      return tValidation('quantityCannotExceed');
     }
     
     return null;
@@ -184,13 +188,13 @@ export const EditItemQuantityDialog: React.FC<EditItemQuantityDialogProps> = ({
         
         const result = await updateItemAction(item.id, formData);
         if (!result.success) {
-          showError(result.error || 'Failed to update item settings');
+          showError(result.error || tItems('failedToUpdateItemSettings'));
           return;
         }
-        showSuccess('Item settings updated successfully');
+        showSuccess(tItems('itemSettingsUpdated'));
       } catch (error) {
         console.error('Failed to update item:', error);
-        showError('Failed to update item settings');
+        showError(tItems('failedToUpdateItemSettings'));
         return;
       }
     }
@@ -232,7 +236,7 @@ export const EditItemQuantityDialog: React.FC<EditItemQuantityDialogProps> = ({
       onClose={handleClose}
       maxWidth="sm"
       fullWidth
-      title="Edit Quantity"
+      title={t('editQuantity')}
       // Make dialog more mobile-friendly
       sx={{
         '& .MuiDialog-paper': {
@@ -258,13 +262,13 @@ export const EditItemQuantityDialog: React.FC<EditItemQuantityDialogProps> = ({
         {/* Quantity input */}
         <TextField
           fullWidth
-          label="Quantity"
+          label={t('quantity')}
           type="number"
           value={quantity}
           onChange={handleQuantityChange}
           onKeyDown={handleKeyPress}
           error={!!error}
-          helperText={error || 'Enter a quantity between 1 and 999'}
+          helperText={error || t('enterQuantityBetween')}
           inputProps={{
             min: 1,
             max: 999,
@@ -297,7 +301,7 @@ export const EditItemQuantityDialog: React.FC<EditItemQuantityDialogProps> = ({
               }
             }}
           >
-            {showAdvanced ? '▼' : '▶'} Advanced Settings
+            {showAdvanced ? '▼' : '▶'} {t('advancedSettings')}
           </Button>
         </Box>
 
@@ -314,7 +318,7 @@ export const EditItemQuantityDialog: React.FC<EditItemQuantityDialogProps> = ({
             {/* Emoji Section */}
             <Box sx={{ mb: { xs: 2, sm: 3 } }}>
               <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}>
-                Emoji
+                {t('emoji')}
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                 <Typography
@@ -387,7 +391,7 @@ export const EditItemQuantityDialog: React.FC<EditItemQuantityDialogProps> = ({
                     skinTonesDisabled={false}
                     previewConfig={{
                       showPreview: true,
-                      defaultCaption: "Select an emoji",
+                      defaultCaption: t('selectAnEmoji'),
                     }}
                     skinTonePickerLocation={SkinTonePickerLocation.PREVIEW}
                     theme={getEmojiPickerTheme(theme)}
@@ -399,19 +403,19 @@ export const EditItemQuantityDialog: React.FC<EditItemQuantityDialogProps> = ({
             {/* Tags Section */}
             <Box>
               <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}>
-                Tags
+                {t('tags')}
               </Typography>
               <Autocomplete
                 multiple
                 freeSolo
                 fullWidth
-                placeholder="Select or add tags..."
+                placeholder={t('selectOrAddTags')}
                 value={selectedTags}
                 onChange={handleTagsChange}
                 options={tagOptions}
                 size="small"
-                noOptionsText="Type to add a new tag"
-                loadingText="Loading tags..."
+                noOptionsText={t('typeToAddNewTag')}
+                loadingText={t('loadingTags')}
                 disabled={isLoadingItems}
                 sx={{
                   '& .MuiOutlinedInput-root': {
@@ -442,7 +446,7 @@ export const EditItemQuantityDialog: React.FC<EditItemQuantityDialogProps> = ({
               width: { xs: '100%', sm: 'auto' },
             }}
           >
-            Cancel
+            {t('cancel')}
           </Button>
           <Button
             variant="contained"
@@ -454,7 +458,7 @@ export const EditItemQuantityDialog: React.FC<EditItemQuantityDialogProps> = ({
               width: { xs: '100%', sm: 'auto' },
             }}
           >
-            Save
+            {t('save')}
           </Button>
         </Box>
       </Box>

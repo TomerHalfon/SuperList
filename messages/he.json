@@ -1,0 +1,176 @@
+{
+  "auth": {
+    "signIn": "התחבר",
+    "signUp": "הירשם",
+    "signOut": "התנתק",
+    "signingIn": "מתחבר...",
+    "signingOut": "מתנתק...",
+    "creatingAccount": "יוצר חשבון...",
+    "email": "אימייל",
+    "password": "סיסמה",
+    "confirmPassword": "אשר סיסמה",
+    "rememberMe": "זכור אותי",
+    "createAccount": "צור חשבון",
+    "dontHaveAccount": "אין לך חשבון?",
+    "alreadyHaveAccount": "יש לך כבר חשבון?",
+    "signInWithGoogle": "התחבר עם Google",
+    "redirecting": "מפנה...",
+    "signedInAs": "מחובר כ",
+    "mustBeAtLeast6Chars": "חייב להיות לפחות 6 תווים"
+  },
+  "validation": {
+    "emailRequired": "אימייל נדרש",
+    "invalidEmail": "כתובת אימייל לא תקינה",
+    "passwordRequired": "סיסמה נדרשת",
+    "passwordMinLength": "סיסמה חייבת להיות לפחות 6 תווים",
+    "passwordMaxLength": "סיסמה חייבת להיות פחות מ-72 תווים",
+    "confirmPasswordRequired": "אנא אשר את הסיסמה שלך",
+    "passwordsDontMatch": "הסיסמאות לא תואמות",
+    "nameRequired": "שם נדרש",
+    "nameTooLong": "שם ארוך מדי",
+    "idRequired": "מזהה נדרש",
+    "emojiRequired": "אמוג'י נדרש",
+    "emojiTooLong": "אמוג'י ארוך מדי",
+    "tagCannotBeEmpty": "תג לא יכול להיות ריק",
+    "tooManyTags": "יותר מדי תגים",
+    "itemIdRequired": "מזהה פריט נדרש",
+    "quantityMin": "כמות חייבת להיות לפחות 1",
+    "quantityMax": "כמות גבוהה מדי",
+    "quantityCannotExceed": "כמות לא יכולה לעלות על 999",
+    "invalidDateFormat": "פורמט תאריך לא תקין",
+    "tooManyItems": "יותר מדי פריטים ברשימה",
+    "pleaseEnterValidNumber": "אנא הזן מספר תקין"
+  },
+  "app": {
+    "title": "SuperList",
+    "subtitle": "לוח הבקרה של רשימות הקניות שלך",
+    "description": "נהל את רשימות הקניות שלך בקלות"
+  },
+  "navigation": {
+    "backToLists": "חזור לרשימות",
+    "editListName": "ערוך שם רשימה",
+    "deleteList": "מחק רשימה"
+  },
+  "lists": {
+    "noListsYet": "אין עדיין רשימות קניות",
+    "createFirstList": "צור את רשימת הקניות הראשונה שלך כדי להתחיל!",
+    "newList": "רשימה חדשה",
+    "progress": "התקדמות",
+    "updated": "עודכן",
+    "itemsCollected": "פריטים נאספו",
+    "deleteList": "מחק רשימה",
+    "listCreatedSuccessfully": "רשימת קניות נוצרה בהצלחה",
+    "listDeletedSuccessfully": "רשימת קניות נמחקה בהצלחה",
+    "failedToCreateList": "נכשל ביצירת רשימת קניות",
+    "failedToDeleteList": "נכשל במחיקת רשימת קניות",
+    "failedToLoadLists": "נכשל בטעינת רשימות קניות",
+    "listNameUpdated": "שם הרשימה עודכן",
+    "failedToUpdateListName": "נכשל בעדכון שם הרשימה"
+  },
+  "items": {
+    "itemsToCollect": "פריטים לאיסוף",
+    "collectedItems": "פריטים שנאספו",
+    "addItemToList": "הוסף פריט לרשימה שלך...",
+    "searchItems": "חפש פריטים לפי שם או תגים (למשל, חלב, ארוחת בוקר)...",
+    "typeToSearch": "הקלד כדי לחפש או להוסיף פריט חדש",
+    "loading": "טוען...",
+    "noSuggestionsFound": "לא נמצאו הצעות",
+    "loadingSuggestions": "טוען הצעות...",
+    "noItemsFound": "לא נמצאו פריטים",
+    "tryDifferentTerms": "נסה לחפש עם מונחים שונים או נקה את החיפוש כדי לראות את כל הפריטים.",
+    "useAddItemField": "השתמש בשדה הוספת פריט למעלה כדי להתחיל!",
+    "itemAddedToList": "נוסף לרשימה!",
+    "failedToAddItem": "נכשל בהוספת פריט לרשימה",
+    "failedToUpdateItem": "נכשל בעדכון סטטוס הפריט",
+    "failedToUpdateQuantity": "נכשל בעדכון כמות",
+    "quantityUpdated": "כמות עודכנה",
+    "itemSettingsUpdated": "הגדרות הפריט עודכנו בהצלחה",
+    "failedToUpdateItemSettings": "נכשל בעדכון הגדרות הפריט"
+  },
+  "dialogs": {
+    "cancel": "ביטול",
+    "save": "שמור",
+    "delete": "מחק",
+    "deleteList": "מחק רשימה",
+    "deleteShoppingList": "מחק רשימת קניות",
+    "youreAboutToDelete": "אתה עומד למחוק",
+    "editQuantity": "ערוך כמות",
+    "advancedSettings": "הגדרות מתקדמות",
+    "emoji": "אמוג'י",
+    "tags": "תגים",
+    "quantity": "כמות",
+    "enterQuantityBetween": "הזן כמות בין 1 ל-999",
+    "selectOrAddTags": "בחר או הוסף תגים...",
+    "typeToAddNewTag": "הקלד כדי להוסיף תג חדש",
+    "loadingTags": "טוען תגים...",
+    "selectAnEmoji": "בחר אמוג'י"
+  },
+  "emptyStates": {
+    "timeToFillUp": "הגיע הזמן למלא את זה! הארנק שלך בטוח... לעת עתה 🛒",
+    "emptierThanFridge": "הרשימה הזו ריקה יותר מהמקרר שלי ביום שני בבוקר 🤷",
+    "addSomeItems": "קדימה, הוסף כמה פריטים! עגלת הקניות שלך מרגישה בודדה 🛍️",
+    "channelShoppingNinja": "רשימה ריקה זוהתה! הגיע הזמן לעורר את הנינג'ה הקניות הפנימי שלך 🥷",
+    "futureSelfWillThank": "עדיין אין כלום כאן! העצמי העתידי שלך יודה לך על הוספת פריטים 📝",
+    "shoppingCartLonely": "הרשימה הזו כל כך ריקה, אפילו עגלת הקניות בודדה 🛒💔"
+  },
+  "deleteWarnings": {
+    "shoppingCartGraveyard": "אתה בטוח? הרשימה הזו תגיע לבית הקברות של עגלות הקניות! ⚰️🛒",
+    "futureSelfRegret": "למחוק את הרשימה הזו? העצמי העתידי שלך עלול להתחרט על ההחלטה הזו! 😱",
+    "unlikeImpulsePurchases": "אזהרה: רשימות שנמחקו לא יכולות להיות לא-נמחקות. בניגוד לקניות האימפולסיביות שלך. 🛍️",
+    "meetItsMaker": "הרשימה הזו עומדת לפגוש את יוצרה... אתה בטוח לחלוטין? 🙏",
+    "digitalVoid": "לאחר מחיקה, הרשימה הזו מצטרפת לריק הדיגיטלי. אין החזרים! 🕳️",
+    "throwingAwayCart": "למחוק את הרשימה הזו? זה כמו לזרוק עגלת קניות מושלמת! 🛒💔",
+    "listHasFeelings": "אתה בטוח? גם לרשימה הזו יש רגשות! (ובכן, לא באמת, אבל עדיין...) 😢",
+    "emptyFridgeSyndrome": "אזהרה: מחיקת הרשימה הזו עלולה לגרום לעצב זמני ותסמונת מקרר ריק! 🥛",
+    "digitalDust": "הרשימה הזו עומדת להפוך לאחד עם האבק הדיגיטלי. להמשיך? ✨",
+    "groceryStoreMiss": "למחוק את הרשימה הזו? חנות המכולת שלך תחמיץ את העסק! 🏪"
+  },
+  "errors": {
+    "anErrorOccurred": "אירעה שגיאה",
+    "failedToLoadShoppingList": "נכשל בטעינת רשימת קניות",
+    "shoppingListNotFound": "רשימת קניות לא נמצאה"
+  },
+  "themes": {
+    "categories": {
+      "standard": "סטנדרטי",
+      "nature": "טבע",
+      "specialty": "מיוחד"
+    },
+    "light": {
+      "name": "בהיר",
+      "description": "ערכת נושא בהירה ונקייה"
+    },
+    "dark": {
+      "name": "כהה",
+      "description": "ערכת נושא כהה נוחה לעיניים"
+    },
+    "purple-night": {
+      "name": "לילה סגול",
+      "description": "גוונים עמוקים של סגול וסגול"
+    },
+    "ocean-blue": {
+      "name": "כחול אוקיינוס",
+      "description": "צבעי כחול וטורקיז מרגיעים של האוקיינוס"
+    },
+    "sunset-orange": {
+      "name": "כתום שקיעה",
+      "description": "גוונים חמים של כתום וקורל של שקיעה"
+    },
+    "forest-green": {
+      "name": "ירוק יער",
+      "description": "גוונים טבעיים של ירוק ואדמה"
+    },
+    "high-contrast": {
+      "name": "ניגודיות גבוהה",
+      "description": "ניגודיות מקסימלית לנגישות"
+    },
+    "cyberpunk": {
+      "name": "סייברפונק",
+      "description": "אווירה עתידנית עם ורוד ניאון וציאן"
+    },
+    "retro": {
+      "name": "רטרו",
+      "description": "צבעי פסטל חמים וינטג' של שנות ה-80"
+    }
+  }
+}

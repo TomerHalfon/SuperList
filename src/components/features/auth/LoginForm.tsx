@@ -12,11 +12,13 @@ import { Alert } from '@/components/ui/Alert';
 import { Divider } from '@/components/ui/Divider';
 import { signInWithEmailAction } from '@/actions/auth';
 import { signInWithOAuth } from '@/lib/auth/auth-helpers';
+import { useTranslations } from 'next-intl';
 import GoogleIcon from '@mui/icons-material/Google';
 
 export const LoginForm: React.FC = () => {
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect');
+  const t = useTranslations('auth');
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -66,7 +68,7 @@ export const LoginForm: React.FC = () => {
       <form onSubmit={handleSubmit}>
         <Stack spacing={3}>
           <Typography variant="h4" align="center" sx={{ mb: 2 }}>
-            Sign In
+            {t('signIn')}
           </Typography>
 
           {error && (
@@ -76,7 +78,7 @@ export const LoginForm: React.FC = () => {
           )}
 
           <TextField
-            label="Email"
+            label={t('email')}
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -87,7 +89,7 @@ export const LoginForm: React.FC = () => {
           />
 
           <TextField
-            label="Password"
+            label={t('password')}
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -104,7 +106,7 @@ export const LoginForm: React.FC = () => {
               disabled={isPending || isOAuthLoading}
             />
             <Typography variant="body2" sx={{ ml: 1 }}>
-              Remember me
+              {t('rememberMe')}
             </Typography>
           </Box>
 
@@ -115,7 +117,7 @@ export const LoginForm: React.FC = () => {
             disabled={isPending || isOAuthLoading}
             size="large"
           >
-            {isPending ? 'Signing in...' : 'Sign In'}
+            {isPending ? t('signingIn') : t('signIn')}
           </Button>
 
           <Divider sx={{ my: 2 }}>OR</Divider>
@@ -129,7 +131,7 @@ export const LoginForm: React.FC = () => {
             onClick={handleGoogleSignIn}
             disabled={isPending || isOAuthLoading}
           >
-            {isOAuthLoading ? 'Redirecting...' : 'Sign in with Google'}
+            {isOAuthLoading ? t('redirecting') : t('signInWithGoogle')}
           </Button>
         </Stack>
       </form>

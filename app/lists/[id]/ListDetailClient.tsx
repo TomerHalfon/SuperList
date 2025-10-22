@@ -24,6 +24,7 @@ import { useList, useUpdateListName, useDeleteList } from '@/hooks/useLists';
 import { useItems } from '@/hooks/useItems';
 import { useToggleItemCollected, useUpdateListItemQuantity } from '@/hooks/useListMutations';
 import { useSnackbar } from '@/components/providers/SnackbarProvider';
+import { useTranslations } from 'next-intl';
 
 interface ListDetailClientProps {
   listId: string;
@@ -31,6 +32,11 @@ interface ListDetailClientProps {
 
 export function ListDetailClient({ listId }: ListDetailClientProps) {
   const router = useRouter();
+  const t = useTranslations('items');
+  const tLists = useTranslations('lists');
+  const tNavigation = useTranslations('navigation');
+  const tErrors = useTranslations('errors');
+  const tEmptyStates = useTranslations('emptyStates');
   const [searchInput, setSearchInput] = useState('');
   const [selectedOption, setSelectedOption] = useState<AutocompleteOption | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -88,7 +94,7 @@ export function ListDetailClient({ listId }: ListDetailClientProps) {
       // Optimistic update already handled by the mutation hook
     } catch (error) {
       console.error('Error toggling item:', error);
-      showError(error instanceof Error ? error.message : 'Failed to update item status');
+      showError(error instanceof Error ? error.message : t('failedToUpdateItem'));
     }
   }, [listId, toggleItemMutation, showError]);
 
@@ -124,12 +130,12 @@ export function ListDetailClient({ listId }: ListDetailClientProps) {
   const handleNameUpdate = useCallback(async (newName: string) => {
     try {
       await updateListNameMutation.mutateAsync({ listId, newName });
-      showSuccess('List name updated');
+      showSuccess(tLists('listNameUpdated'));
     } catch (error) {
       console.error('Error updating list name:', error);
-      showError(error instanceof Error ? error.message : 'Failed to update list name');
+      showError(error instanceof Error ? error.message : tLists('failedToUpdateListName'));
     }
-  }, [listId, updateListNameMutation, showSuccess, showError]);
+  }, [listId, updateListNameMutation, showSuccess, showError, tLists]);
 
   const handleDeleteClick = useCallback(() => {
     setDeleteDialogOpen(true);
@@ -138,14 +144,14 @@ export function ListDetailClient({ listId }: ListDetailClientProps) {
   const handleDeleteConfirm = useCallback(async () => {
     try {
       await deleteListMutation.mutateAsync(listId);
-      showSuccess('Shopping list deleted successfully');
+      showSuccess(tLists('listDeletedSuccessfully'));
       setDeleteDialogOpen(false);
       router.push('/');
     } catch (error) {
       console.error('Error deleting list:', error);
-      showError(error instanceof Error ? error.message : 'Failed to delete shopping list');
+      showError(error instanceof Error ? error.message : tLists('failedToDeleteList'));
     }
-  }, [listId, deleteListMutation, showSuccess, showError, router]);
+  }, [listId, deleteListMutation, showSuccess, showError, router, tLists]);
 
   const handleDeleteCancel = useCallback(() => {
     setDeleteDialogOpen(false);
@@ -157,9 +163,9 @@ export function ListDetailClient({ listId }: ListDetailClientProps) {
       // Optimistic update already handled by the mutation hook
     } catch (error) {
       console.error('Error updating quantity:', error);
-      showError(error instanceof Error ? error.message : 'Failed to update quantity');
+      showError(error instanceof Error ? error.message : t('failedToUpdateQuantity'));
     }
-  }, [listId, updateQuantityMutation, showError]);
+  }, [listId, updateQuantityMutation, showError, t]);
 
   const handleEditClick = useCallback((itemId: string, currentQuantity: number) => {
     const item = items.find(i => i.id === itemId);
@@ -183,12 +189,12 @@ export function ListDetailClient({ listId }: ListDetailClientProps) {
         itemId: editingItem.item.id, 
         quantity: newQuantity 
       });
-      showSuccess('Quantity updated');
+      showSuccess(t('quantityUpdated'));
       setEditDialogOpen(false);
       setEditingItem(null);
     } catch (error) {
       console.error('Error updating quantity:', error);
-      showError(error instanceof Error ? error.message : 'Failed to update quantity');
+      showError(error instanceof Error ? error.message : t('failedToUpdateQuantity'));
     }
   }, [listId, editingItem, updateQuantityMutation, showSuccess, showError]);
 
@@ -203,13 +209,13 @@ export function ListDetailClient({ listId }: ListDetailClientProps) {
       <Container maxWidth="lg">
         <Box sx={{ textAlign: 'center', py: 8 }}>
           <Typography variant="h6" color="error">
-            Failed to load shopping list
+            {tErrors('failedToLoadShoppingList')}
           </Typography>
           <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-            {listError instanceof Error ? listError.message : 'An error occurred'}
+            {listError instanceof Error ? listError.message : tErrors('anErrorOccurred')}
           </Typography>
           <Button onClick={() => router.push('/')} sx={{ mt: 2 }}>
-            Back to Lists
+            {tNavigation('backToLists')}
           </Button>
         </Box>
       </Container>
@@ -222,10 +228,10 @@ export function ListDetailClient({ listId }: ListDetailClientProps) {
       <Container maxWidth="lg">
         <Box sx={{ textAlign: 'center', py: 8 }}>
           <Typography variant="h6" color="textSecondary">
-            Shopping list not found
+            {tErrors('shoppingListNotFound')}
           </Typography>
           <Button onClick={() => router.push('/')} sx={{ mt: 2 }}>
-            Back to Lists
+            {tNavigation('backToLists')}
           </Button>
         </Box>
       </Container>
@@ -244,7 +250,7 @@ export function ListDetailClient({ listId }: ListDetailClientProps) {
       <Box sx={{ mb: 3 }}>
         <Autocomplete
           fullWidth
-          placeholder="Search items by name or tags (e.g., dairy, breakfast)..."
+          placeholder={t('searchItems')}
           value={selectedOption}
           onChange={handleSearchChange}
           onInputChange={handleInputChange}
@@ -252,8 +258,8 @@ export function ListDetailClient({ listId }: ListDetailClientProps) {
           showClearButton
           onClear={handleClearSearch}
           size="small"
-          noOptionsText="No suggestions found"
-          loadingText="Loading suggestions..."
+          noOptionsText={t('noSuggestionsFound')}
+          loadingText={t('loadingSuggestions')}
         />
       </Box>
 
@@ -261,7 +267,7 @@ export function ListDetailClient({ listId }: ListDetailClientProps) {
         {/* Add Item Section */}
         <Box sx={{ mb: 3 }}>
           <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-            Items to collect ({uncollectedItems.length})
+            {t('itemsToCollect')} ({uncollectedItems.length})
           </Typography>
           <AddItemToList
             listId={list.id}
@@ -297,7 +303,7 @@ export function ListDetailClient({ listId }: ListDetailClientProps) {
           <Box>
             {uncollectedItems.length > 0 && <Divider sx={{ my: 3 }} />}
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: 'text.secondary' }}>
-              Collected items ({collectedItems.length})
+              {t('collectedItems')} ({collectedItems.length})
             </Typography>
             {collectedItems.map((item) => {
               return (
@@ -321,18 +327,18 @@ export function ListDetailClient({ listId }: ListDetailClientProps) {
             <Typography variant="h6" color="textSecondary">
               {(() => {
                 const funnyMessages = [
-                  "Time to fill this up! Your wallet is safe... for now 🛒",
-                  "This list is emptier than my fridge on Monday morning 🤷",
-                  "Go ahead, add some items! Your shopping cart is feeling lonely 🛍️",
-                  "Empty list detected! Time to channel your inner shopping ninja 🥷",
-                  "Nothing here yet! Your future self will thank you for adding items 📝",
-                  "This list is so empty, even the shopping cart is lonely 🛒💔"
+                  tEmptyStates('timeToFillUp'),
+                  tEmptyStates('emptierThanFridge'),
+                  tEmptyStates('addSomeItems'),
+                  tEmptyStates('channelShoppingNinja'),
+                  tEmptyStates('futureSelfWillThank'),
+                  tEmptyStates('shoppingCartLonely')
                 ];
                 return funnyMessages[Math.floor(Math.random() * funnyMessages.length)];
               })()}
             </Typography>
             <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-              Use the add item field above to get started!
+              {t('useAddItemField')}
             </Typography>
           </Box>
         )}
@@ -341,10 +347,10 @@ export function ListDetailClient({ listId }: ListDetailClientProps) {
         {list.items.length > 0 && uncollectedItems.length === 0 && collectedItems.length === 0 && debouncedSearchInput && (
           <Box sx={{ textAlign: 'center', py: 8 }}>
             <Typography variant="h6" color="textSecondary">
-              No items found
+              {t('noItemsFound')}
             </Typography>
             <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-              Try searching with different terms or clear the search to see all items.
+              {t('tryDifferentTerms')}
             </Typography>
           </Box>
         )}
@@ -362,7 +368,7 @@ export function ListDetailClient({ listId }: ListDetailClientProps) {
             py: 1.5,
           }}
         >
-          Delete List
+          {tNavigation('deleteList')}
         </Button>
       </Box>
 

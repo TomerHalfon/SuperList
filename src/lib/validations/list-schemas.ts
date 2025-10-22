@@ -1,6 +1,32 @@
 import { z } from 'zod';
 import { shoppingListItemSchema } from './item-schemas';
 
+/**
+ * Create localized schemas
+ */
+export const createShoppingListSchema = (messages: Record<string, string>) => {
+  return z.object({
+    id: z.string().min(1, messages.idRequired || 'ID is required'),
+    name: z.string().min(1, messages.nameRequired || 'Name is required').max(100, messages.nameTooLong || 'Name too long'),
+    updatedAt: z.string().datetime(messages.invalidDateFormat || 'Invalid date format'),
+    items: z.array(createShoppingListItemSchema(messages)).max(200, messages.tooManyItems || 'Too many items in list'),
+  });
+};
+
+export const createCreateShoppingListSchema = (messages: Record<string, string>) => {
+  return z.object({
+    name: z.string().min(1, messages.nameRequired || 'Name is required').max(100, messages.nameTooLong || 'Name too long'),
+  });
+};
+
+export const createShoppingListItemSchema = (messages: Record<string, string>) => {
+  return z.object({
+    itemId: z.string().min(1, messages.itemIdRequired || 'Item ID is required'),
+    quantity: z.number().int().min(1, messages.quantityMin || 'Quantity must be at least 1').max(999, messages.quantityMax || 'Quantity too high'),
+    collected: z.boolean(),
+  });
+};
+
 // Base shopping list schema
 export const shoppingListSchema = z.object({
   id: z.string().min(1, 'ID is required'),
