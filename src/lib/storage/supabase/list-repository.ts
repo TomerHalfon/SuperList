@@ -38,8 +38,8 @@ export class SupabaseListRepository implements IListRepository {
    * Get all shopping lists
    */
   async getAll(): Promise<ShoppingList[]> {
-    const { data, error } = await this.supabase
-      .from('shopping_lists')
+    const { data, error } = await (this.supabase
+      .from('shopping_lists') as any)
       .select(`
         *,
         shopping_list_items (
@@ -61,8 +61,8 @@ export class SupabaseListRepository implements IListRepository {
    * Get shopping list by ID
    */
   async getById(id: string): Promise<ShoppingList | null> {
-    const { data, error } = await this.supabase
-      .from('shopping_lists')
+    const { data, error } = await (this.supabase
+      .from('shopping_lists') as any)
       .select(`
         *,
         shopping_list_items (
@@ -104,8 +104,8 @@ export class SupabaseListRepository implements IListRepository {
         updated_at: new Date().toISOString(),
       };
 
-      const { data: listData, error: listError } = await this.supabase
-        .from('shopping_lists')
+      const { data: listData, error: listError } = await (this.supabase
+        .from('shopping_lists') as any)
         .insert(newList)
         .select()
         .single();
@@ -124,13 +124,13 @@ export class SupabaseListRepository implements IListRepository {
           collected: item.collected,
         }));
 
-        const { error: itemsError } = await this.supabase
-          .from('shopping_list_items')
+        const { error: itemsError } = await (this.supabase
+          .from('shopping_list_items') as any)
           .insert(listItems);
 
         if (itemsError) {
           // Clean up the created list if items insertion fails
-          await this.supabase.from('shopping_lists').delete().eq('id', listData.id);
+          await (this.supabase.from('shopping_lists') as any).delete().eq('id', listData.id);
           throw new ValidationError(`Failed to add items to shopping list: ${itemsError.message}`);
         }
       }
@@ -176,8 +176,8 @@ export class SupabaseListRepository implements IListRepository {
         updated_at: new Date().toISOString(),
       };
 
-      const { data: listData, error: listError } = await this.supabase
-        .from('shopping_lists')
+      const { data: listData, error: listError } = await (this.supabase
+        .from('shopping_lists') as any)
         .update(updateData)
         .eq('id', id)
         .select()
@@ -190,8 +190,8 @@ export class SupabaseListRepository implements IListRepository {
       // Update items if provided
       if (validatedData.items !== undefined) {
         // Delete existing items
-        const { error: deleteError } = await this.supabase
-          .from('shopping_list_items')
+        const { error: deleteError } = await (this.supabase
+          .from('shopping_list_items') as any)
           .delete()
           .eq('list_id', id);
 
@@ -209,8 +209,8 @@ export class SupabaseListRepository implements IListRepository {
             collected: item.collected,
           }));
 
-          const { error: insertError } = await this.supabase
-            .from('shopping_list_items')
+          const { error: insertError } = await (this.supabase
+            .from('shopping_list_items') as any)
             .insert(listItems);
 
           if (insertError) {
@@ -238,8 +238,8 @@ export class SupabaseListRepository implements IListRepository {
    * Delete a shopping list (soft delete)
    */
   async delete(id: string): Promise<void> {
-    const { error } = await this.supabase
-      .from('shopping_lists')
+    const { error } = await (this.supabase
+      .from('shopping_lists') as any)
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', id);
 
@@ -253,8 +253,8 @@ export class SupabaseListRepository implements IListRepository {
    */
   async addItem(listId: string, item: ShoppingListItem): Promise<ShoppingList> {
     // Try to update if exists, otherwise insert
-    const { data: existing } = await this.supabase
-      .from('shopping_list_items')
+    const { data: existing } = await (this.supabase
+      .from('shopping_list_items') as any)
       .select('id')
       .eq('list_id', listId)
       .eq('item_id', item.itemId)
@@ -274,8 +274,8 @@ export class SupabaseListRepository implements IListRepository {
       collected: item.collected,
     };
 
-    const { error } = await this.supabase
-      .from('shopping_list_items')
+    const { error } = await (this.supabase
+      .from('shopping_list_items') as any)
       .insert(listItem);
 
     if (error) {
@@ -283,8 +283,8 @@ export class SupabaseListRepository implements IListRepository {
     }
 
     // Update list timestamp
-    await this.supabase
-      .from('shopping_lists')
+    await (this.supabase
+      .from('shopping_lists') as any)
       .update({ updated_at: new Date().toISOString() })
       .eq('id', listId);
 
@@ -301,8 +301,8 @@ export class SupabaseListRepository implements IListRepository {
    * Remove an item from a shopping list
    */
   async removeItem(listId: string, itemId: string): Promise<ShoppingList> {
-    const { error } = await this.supabase
-      .from('shopping_list_items')
+    const { error } = await (this.supabase
+      .from('shopping_list_items') as any)
       .delete()
       .eq('list_id', listId)
       .eq('item_id', itemId);
@@ -312,8 +312,8 @@ export class SupabaseListRepository implements IListRepository {
     }
 
     // Update list timestamp
-    await this.supabase
-      .from('shopping_lists')
+    await (this.supabase
+      .from('shopping_lists') as any)
       .update({ updated_at: new Date().toISOString() })
       .eq('id', listId);
 
@@ -335,8 +335,8 @@ export class SupabaseListRepository implements IListRepository {
     if (updates.quantity !== undefined) updateData.quantity = updates.quantity;
     if (updates.collected !== undefined) updateData.collected = updates.collected;
 
-    const { error } = await this.supabase
-      .from('shopping_list_items')
+    const { error } = await (this.supabase
+      .from('shopping_list_items') as any)
       .update(updateData)
       .eq('list_id', listId)
       .eq('item_id', itemId);
@@ -346,8 +346,8 @@ export class SupabaseListRepository implements IListRepository {
     }
 
     // Update list timestamp
-    await this.supabase
-      .from('shopping_lists')
+    await (this.supabase
+      .from('shopping_lists') as any)
       .update({ updated_at: new Date().toISOString() })
       .eq('id', listId);
 
@@ -365,8 +365,8 @@ export class SupabaseListRepository implements IListRepository {
    */
   async toggleItemCollected(listId: string, itemId: string): Promise<ShoppingList> {
     // First get the current item to toggle its collected status
-    const { data: currentItem, error: fetchError } = await this.supabase
-      .from('shopping_list_items')
+    const { data: currentItem, error: fetchError } = await (this.supabase
+      .from('shopping_list_items') as any)
       .select('collected')
       .eq('list_id', listId)
       .eq('item_id', itemId)
@@ -376,8 +376,8 @@ export class SupabaseListRepository implements IListRepository {
       throw new ValidationError(`Failed to fetch item: ${fetchError.message}`);
     }
 
-    const { error } = await this.supabase
-      .from('shopping_list_items')
+    const { error } = await (this.supabase
+      .from('shopping_list_items') as any)
       .update({ collected: !currentItem.collected })
       .eq('list_id', listId)
       .eq('item_id', itemId);
@@ -387,8 +387,8 @@ export class SupabaseListRepository implements IListRepository {
     }
 
     // Update list timestamp
-    await this.supabase
-      .from('shopping_lists')
+    await (this.supabase
+      .from('shopping_lists') as any)
       .update({ updated_at: new Date().toISOString() })
       .eq('id', listId);
 
@@ -416,8 +416,8 @@ export class SupabaseListRepository implements IListRepository {
       updated_at: new Date().toISOString(),
     };
 
-    const { data: listData, error: listError } = await this.supabase
-      .from('shopping_lists')
+    const { data: listData, error: listError } = await (this.supabase
+      .from('shopping_lists') as any)
       .insert(duplicatedList)
       .select()
       .single();
@@ -436,13 +436,13 @@ export class SupabaseListRepository implements IListRepository {
         collected: false, // Reset collected status for duplicated items
       }));
 
-      const { error: itemsError } = await this.supabase
-        .from('shopping_list_items')
+      const { error: itemsError } = await (this.supabase
+        .from('shopping_list_items') as any)
         .insert(listItems);
 
       if (itemsError) {
         // Clean up the created list if items insertion fails
-        await this.supabase.from('shopping_lists').delete().eq('id', listData.id);
+        await (this.supabase.from('shopping_lists') as any).delete().eq('id', listData.id);
         throw new ValidationError(`Failed to copy items to duplicated list: ${itemsError.message}`);
       }
     }
@@ -460,8 +460,8 @@ export class SupabaseListRepository implements IListRepository {
    * Clear all completed items from a list
    */
   async clearCompletedItems(listId: string): Promise<ShoppingList> {
-    const { error } = await this.supabase
-      .from('shopping_list_items')
+    const { error } = await (this.supabase
+      .from('shopping_list_items') as any)
       .delete()
       .eq('list_id', listId)
       .eq('collected', true);
@@ -471,8 +471,8 @@ export class SupabaseListRepository implements IListRepository {
     }
 
     // Update list timestamp
-    await this.supabase
-      .from('shopping_lists')
+    await (this.supabase
+      .from('shopping_lists') as any)
       .update({ updated_at: new Date().toISOString() })
       .eq('id', listId);
 
@@ -489,8 +489,8 @@ export class SupabaseListRepository implements IListRepository {
    * Helper method to get list by name (case-insensitive)
    */
   private async getByName(name: string): Promise<ShoppingList | null> {
-    const { data, error } = await this.supabase
-      .from('shopping_lists')
+    const { data, error } = await (this.supabase
+      .from('shopping_lists') as any)
       .select(`
         *,
         shopping_list_items (

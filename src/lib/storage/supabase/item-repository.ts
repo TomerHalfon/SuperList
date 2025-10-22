@@ -16,8 +16,8 @@ export class SupabaseItemRepository implements IItemRepository {
    * Get all items
    */
   async getAll(): Promise<Item[]> {
-    const { data, error } = await this.supabase
-      .from('items')
+    const { data, error } = await (this.supabase
+      .from('items') as any)
       .select('*')
       .order('name');
 
@@ -32,8 +32,8 @@ export class SupabaseItemRepository implements IItemRepository {
    * Get item by ID
    */
   async getById(id: string): Promise<Item | null> {
-    const { data, error } = await this.supabase
-      .from('items')
+    const { data, error } = await (this.supabase
+      .from('items') as any)
       .select('*')
       .eq('id', id)
       .single();
@@ -69,8 +69,8 @@ export class SupabaseItemRepository implements IItemRepository {
         tags: validatedData.tags,
       };
 
-      const { data, error } = await this.supabase
-        .from('items')
+      const { data, error } = await (this.supabase
+        .from('items') as any)
         .insert(newItem)
         .select()
         .single();
@@ -114,8 +114,8 @@ export class SupabaseItemRepository implements IItemRepository {
         updated_at: new Date().toISOString(),
       };
 
-      const { data, error } = await this.supabase
-        .from('items')
+      const { data, error} = await (this.supabase
+        .from('items') as any)
         .update(updateData)
         .eq('id', id)
         .select()
@@ -138,8 +138,8 @@ export class SupabaseItemRepository implements IItemRepository {
    * Delete an item
    */
   async delete(id: string): Promise<void> {
-    const { error } = await this.supabase
-      .from('items')
+    const { error } = await (this.supabase
+      .from('items') as any)
       .delete()
       .eq('id', id);
 
@@ -158,8 +158,8 @@ export class SupabaseItemRepository implements IItemRepository {
 
     const searchTerm = `%${query.toLowerCase()}%`;
 
-    const { data, error } = await this.supabase
-      .from('items')
+    const { data, error } = await (this.supabase
+      .from('items') as any)
       .select('*')
       .or(`name.ilike.${searchTerm},tags.cs.{${query}}`)
       .order('name');
@@ -175,8 +175,8 @@ export class SupabaseItemRepository implements IItemRepository {
    * Get items by tag
    */
   async getByTag(tag: string): Promise<Item[]> {
-    const { data, error } = await this.supabase
-      .from('items')
+    const { data, error } = await (this.supabase
+      .from('items') as any)
       .select('*')
       .contains('tags', [tag])
       .order('name');
@@ -196,8 +196,8 @@ export class SupabaseItemRepository implements IItemRepository {
       return this.getAll();
     }
 
-    const { data, error } = await this.supabase
-      .from('items')
+    const { data, error } = await (this.supabase
+      .from('items') as any)
       .select('*')
       .contains('tags', tags)
       .order('name');
@@ -213,8 +213,8 @@ export class SupabaseItemRepository implements IItemRepository {
    * Helper method to get item by name (case-insensitive)
    */
   private async getByName(name: string): Promise<Item | null> {
-    const { data, error } = await this.supabase
-      .from('items')
+    const { data, error } = await (this.supabase
+      .from('items') as any)
       .select('*')
       .ilike('name', name)
       .single();
