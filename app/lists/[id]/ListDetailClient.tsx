@@ -6,30 +6,29 @@ import { Delete as DeleteIcon } from '@mui/icons-material';
 import { Container } from '@/components/ui/Container';
 import { Box } from '@/components/ui/Box';
 import { Divider } from '@/components/ui/Divider';
+import { Typography } from '@/components/ui/Typography';
+import { Autocomplete, AutocompleteOption } from '@/components/ui/Autocomplete';
+import { Button } from '@/components/ui/Button';
 import { ShoppingListHeader } from '@/components/features/ShoppingListHeader';
 import { ShoppingListItem } from '@/components/features/ShoppingListItem';
 import { AddItemToList } from '@/components/features/AddItemToList';
 import { DeleteListDialog } from '@/components/features/DeleteListDialog';
 import { EditItemQuantityDialog } from '@/components/features/EditItemQuantityDialog';
-import { AppHeader } from '@/components/layout/AppHeader';
-import { Typography } from '@/components/ui/Typography';
-import { Autocomplete, AutocompleteOption } from '@/components/ui/Autocomplete';
-import { Button } from '@/components/ui/Button';
-import { ShoppingList, ShoppingListItem as ShoppingListItemType, Item } from '@/types/shopping-list';
+import { ShoppingListItem as ShoppingListItemType, Item } from '@/types/shopping-list';
 import { getItemDetails } from '@/lib/utils/list-helpers';
 import { filterItemsBySearch } from '@/lib/utils/search-helpers';
-import { filterSuggestions } from '@/lib/utils/search-suggestions';
+import { filterSuggestions, generateSearchSuggestions } from '@/lib/utils/search-suggestions';
 import { useDebounce } from '@/hooks/useDebounce';
-import { toggleItemCollectedAction, updateListNameAction, deleteListAction, updateListItemAction } from '@/actions/lists';
+import { useList, useUpdateListName, useDeleteList } from '@/hooks/useLists';
+import { useItems } from '@/hooks/useItems';
+import { useToggleItemCollected, useUpdateListItemQuantity } from '@/hooks/useListMutations';
 import { useSnackbar } from '@/components/providers/SnackbarProvider';
 
 interface ListDetailClientProps {
-  list: ShoppingList;
-  items: Item[];
-  allSuggestions: AutocompleteOption[];
+  listId: string;
 }
 
-export function ListDetailClient({ list, items, allSuggestions }: ListDetailClientProps) {
+export function ListDetailClient({ listId }: ListDetailClientProps) {
   const router = useRouter();
   const [searchInput, setSearchInput] = useState('');
   const [selectedOption, setSelectedOption] = useState<AutocompleteOption | null>(null);
@@ -38,10 +37,45 @@ export function ListDetailClient({ list, items, allSuggestions }: ListDetailClie
   const [editingItem, setEditingItem] = useState<{ item: Item; currentQuantity: number } | null>(null);
   const debouncedSearchInput = useDebounce(searchInput, 300);
   const { showSuccess, showError } = useSnackbar();
+  
+  // Use React Query hooks
+  const { data: list, isLoading: listLoading, error: listError } = useList(listId);
+  const { data: items = [], isLoading: itemsLoading } = useItems();
+  const updateListNameMutation = useUpdateListName();
+  const deleteListMutation = useDeleteList();
+  const toggleItemMutation = useToggleItemCollected();
+  const updateQuantityMutation = useUpdateListItemQuantity();
+
+  // Generate search suggestions from items in this list (must be before early returns)
+  const allSuggestions = useMemo(() => {
+    if (!list) return [];
+    const listItemIds = new Set(list.items.map((item: ShoppingListItemType) => item.itemId));
+    const listItems = items.filter((item: Item) => listItemIds.has(item.id));
+    return generateSearchSuggestions(listItems);
+  }, [list, items]);
 
   const filteredSuggestions = useMemo(() => {
     return filterSuggestions(allSuggestions, searchInput);
   }, [allSuggestions, searchInput]);
+
+  // Filter items based on search (must be before early returns)
+  const filteredItems = useMemo(() => {
+    if (!list) return { uncollected: [], collected: [] };
+    
+    const allItems = list.items.map(item => {
+      const itemDetails = getItemDetails(item.itemId, items);
+      return itemDetails ? { ...item, itemDetails } : null;
+    }).filter(Boolean) as Array<ShoppingListItemType & { itemDetails: Item }>;
+
+    const filtered = allItems.filter(item => 
+      filterItemsBySearch([item.itemDetails], debouncedSearchInput).length > 0
+    );
+
+    return {
+      uncollected: filtered.filter(item => !item.collected),
+      collected: filtered.filter(item => item.collected),
+    };
+  }, [list, items, debouncedSearchInput]);
 
   const handleBack = useCallback(() => {
     router.push('/');
@@ -49,20 +83,13 @@ export function ListDetailClient({ list, items, allSuggestions }: ListDetailClie
 
   const handleToggleItem = useCallback(async (itemId: string) => {
     try {
-      const result = await toggleItemCollectedAction(list.id, itemId);
-      if (result.success) {
-        showSuccess('Item status updated');
-        // The page will be revalidated automatically by the Server Action
-        // No need to update local state
-      } else {
-        console.error('Failed to toggle item:', result.error);
-        showError(result.error || 'Failed to update item status');
-      }
+      await toggleItemMutation.mutateAsync({ listId, itemId });
+      // Optimistic update already handled by the mutation hook
     } catch (error) {
       console.error('Error toggling item:', error);
-      showError('Failed to update item status');
+      showError(error instanceof Error ? error.message : 'Failed to update item status');
     }
-  }, [list.id, showSuccess, showError]);
+  }, [listId, toggleItemMutation, showError]);
 
   const handleSearchChange = useCallback((event: React.SyntheticEvent, newValue: AutocompleteOption | AutocompleteOption[] | null) => {
     // Handle single selection (not multiple)
@@ -95,19 +122,13 @@ export function ListDetailClient({ list, items, allSuggestions }: ListDetailClie
 
   const handleNameUpdate = useCallback(async (newName: string) => {
     try {
-      const result = await updateListNameAction(list.id, newName);
-      if (result.success) {
-        showSuccess('List name updated');
-        // The page will be revalidated automatically by the Server Action
-      } else {
-        console.error('Failed to update list name:', result.error);
-        showError(result.error || 'Failed to update list name');
-      }
+      await updateListNameMutation.mutateAsync({ listId, newName });
+      showSuccess('List name updated');
     } catch (error) {
       console.error('Error updating list name:', error);
-      showError('Failed to update list name');
+      showError(error instanceof Error ? error.message : 'Failed to update list name');
     }
-  }, [list.id, showSuccess, showError]);
+  }, [listId, updateListNameMutation, showSuccess, showError]);
 
   const handleDeleteClick = useCallback(() => {
     setDeleteDialogOpen(true);
@@ -115,20 +136,15 @@ export function ListDetailClient({ list, items, allSuggestions }: ListDetailClie
 
   const handleDeleteConfirm = useCallback(async () => {
     try {
-      const result = await deleteListAction(list.id);
-      if (result.success) {
-        showSuccess('Shopping list deleted successfully');
-        setDeleteDialogOpen(false);
-        router.push('/');
-      } else {
-        console.error('Failed to delete list:', result.error);
-        showError(result.error || 'Failed to delete shopping list');
-      }
+      await deleteListMutation.mutateAsync(listId);
+      showSuccess('Shopping list deleted successfully');
+      setDeleteDialogOpen(false);
+      router.push('/');
     } catch (error) {
       console.error('Error deleting list:', error);
-      showError('Failed to delete shopping list');
+      showError(error instanceof Error ? error.message : 'Failed to delete shopping list');
     }
-  }, [list.id, showSuccess, showError, router]);
+  }, [listId, deleteListMutation, showSuccess, showError, router]);
 
   const handleDeleteCancel = useCallback(() => {
     setDeleteDialogOpen(false);
@@ -136,22 +152,13 @@ export function ListDetailClient({ list, items, allSuggestions }: ListDetailClie
 
   const handleQuantityChange = useCallback(async (itemId: string, newQuantity: number) => {
     try {
-      const formData = new FormData();
-      formData.append('quantity', newQuantity.toString());
-      
-      const result = await updateListItemAction(list.id, itemId, formData);
-      if (result.success) {
-        showSuccess('Quantity updated');
-        // The page will be revalidated automatically by the Server Action
-      } else {
-        console.error('Failed to update quantity:', result.error);
-        showError(result.error || 'Failed to update quantity');
-      }
+      await updateQuantityMutation.mutateAsync({ listId, itemId, quantity: newQuantity });
+      // Optimistic update already handled by the mutation hook
     } catch (error) {
       console.error('Error updating quantity:', error);
-      showError('Failed to update quantity');
+      showError(error instanceof Error ? error.message : 'Failed to update quantity');
     }
-  }, [list.id, showSuccess, showError]);
+  }, [listId, updateQuantityMutation, showError]);
 
   const handleEditClick = useCallback((itemId: string, currentQuantity: number) => {
     const item = items.find(i => i.id === itemId);
@@ -170,43 +177,69 @@ export function ListDetailClient({ list, items, allSuggestions }: ListDetailClie
     if (!editingItem) return;
 
     try {
-      const formData = new FormData();
-      formData.append('quantity', newQuantity.toString());
-      
-      const result = await updateListItemAction(list.id, editingItem.item.id, formData);
-      if (result.success) {
-        showSuccess('Quantity updated');
-        setEditDialogOpen(false);
-        setEditingItem(null);
-        // The page will be revalidated automatically by the Server Action
-      } else {
-        console.error('Failed to update quantity:', result.error);
-        showError(result.error || 'Failed to update quantity');
-      }
+      await updateQuantityMutation.mutateAsync({ 
+        listId, 
+        itemId: editingItem.item.id, 
+        quantity: newQuantity 
+      });
+      showSuccess('Quantity updated');
+      setEditDialogOpen(false);
+      setEditingItem(null);
     } catch (error) {
       console.error('Error updating quantity:', error);
-      showError('Failed to update quantity');
+      showError(error instanceof Error ? error.message : 'Failed to update quantity');
     }
-  }, [list.id, editingItem, showSuccess, showError]);
+  }, [listId, editingItem, updateQuantityMutation, showSuccess, showError]);
 
-  // Filter items based on search
-  const filteredItems = useMemo(() => {
-    const allItems = list.items.map(item => {
-      const itemDetails = getItemDetails(item.itemId, items);
-      return itemDetails ? { ...item, itemDetails } : null;
-    }).filter(Boolean) as Array<ShoppingListItemType & { itemDetails: Item }>;
-
-    const filtered = allItems.filter(item => 
-      filterItemsBySearch([item.itemDetails], debouncedSearchInput).length > 0
+  // Loading state
+  if (listLoading || itemsLoading) {
+    return (
+      <Container maxWidth="lg">
+        <Box sx={{ textAlign: 'center', py: 8 }}>
+          <Typography variant="h6" color="textSecondary">
+            Loading shopping list...
+          </Typography>
+        </Box>
+      </Container>
     );
+  }
 
-    return {
-      uncollected: filtered.filter(item => !item.collected),
-      collected: filtered.filter(item => item.collected),
-    };
-  }, [list.items, items, debouncedSearchInput]);
+  // Error state
+  if (listError) {
+    return (
+      <Container maxWidth="lg">
+        <Box sx={{ textAlign: 'center', py: 8 }}>
+          <Typography variant="h6" color="error">
+            Failed to load shopping list
+          </Typography>
+          <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+            {listError instanceof Error ? listError.message : 'An error occurred'}
+          </Typography>
+          <Button onClick={() => router.push('/')} sx={{ mt: 2 }}>
+            Back to Lists
+          </Button>
+        </Box>
+      </Container>
+    );
+  }
 
-  // Use filtered items
+  // Not found
+  if (!list) {
+    return (
+      <Container maxWidth="lg">
+        <Box sx={{ textAlign: 'center', py: 8 }}>
+          <Typography variant="h6" color="textSecondary">
+            Shopping list not found
+          </Typography>
+          <Button onClick={() => router.push('/')} sx={{ mt: 2 }}>
+            Back to Lists
+          </Button>
+        </Box>
+      </Container>
+    );
+  }
+
+  // Use filtered items (list is guaranteed to exist here)
   const uncollectedItems = filteredItems.uncollected;
   const collectedItems = filteredItems.collected;
 

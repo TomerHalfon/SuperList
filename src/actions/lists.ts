@@ -1,6 +1,5 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
 import { getListRepository, getItemRepository } from '@/lib/storage';
 import { validateCreateList, validateUpdateList } from '@/lib/validations/list-schemas';
 import { StorageError, ValidationError } from '@/lib/storage/interfaces';
@@ -84,7 +83,7 @@ export async function createListAction(formData: FormData): Promise<ActionResult
     const repository = getListRepository();
     const list = await repository.create(validatedData);
 
-    revalidatePath('/');
+    // Note: React Query handles cache invalidation, no need for revalidatePath
     
     return {
       success: true,
@@ -131,8 +130,7 @@ export async function updateListAction(id: string, formData: FormData): Promise<
     const repository = getListRepository();
     const list = await repository.update(id, validatedData);
 
-    revalidatePath('/');
-    revalidatePath(`/lists/${id}`);
+    // Note: React Query handles cache invalidation
     
     return {
       success: true,
@@ -178,7 +176,7 @@ export async function deleteListAction(id: string): Promise<ActionResult> {
     const repository = getListRepository();
     await repository.delete(id);
 
-    revalidatePath('/');
+    // Note: React Query handles cache invalidation
     
     return {
       success: true,
@@ -232,8 +230,7 @@ export async function addItemToListAction(listId: string, formData: FormData): P
     const repository = getListRepository();
     const list = await repository.addItem(listId, rawData);
 
-    revalidatePath('/');
-    revalidatePath(`/lists/${listId}`);
+    // Note: React Query handles cache invalidation
     
     return {
       success: true,
@@ -271,8 +268,7 @@ export async function removeItemFromListAction(listId: string, itemId: string): 
     const repository = getListRepository();
     const list = await repository.removeItem(listId, itemId);
 
-    revalidatePath('/');
-    revalidatePath(`/lists/${listId}`);
+    // Note: React Query handles cache invalidation
     
     return {
       success: true,
@@ -310,8 +306,7 @@ export async function toggleItemCollectedAction(listId: string, itemId: string):
     const repository = getListRepository();
     const list = await repository.toggleItemCollected(listId, itemId);
 
-    revalidatePath('/');
-    revalidatePath(`/lists/${listId}`);
+    // Note: React Query handles cache invalidation
     
     return {
       success: true,
@@ -356,8 +351,7 @@ export async function updateListItemAction(listId: string, itemId: string, formD
     const repository = getListRepository();
     const list = await repository.updateItem(listId, itemId, rawData);
 
-    revalidatePath('/');
-    revalidatePath(`/lists/${listId}`);
+    // Note: React Query handles cache invalidation
     
     return {
       success: true,
@@ -395,7 +389,7 @@ export async function duplicateListAction(id: string, newName?: string): Promise
     const repository = getListRepository();
     const list = await repository.duplicateList(id, newName);
 
-    revalidatePath('/');
+    // Note: React Query handles cache invalidation
     
     return {
       success: true,
@@ -441,8 +435,7 @@ export async function updateListNameAction(listId: string, newName: string): Pro
     const repository = getListRepository();
     const list = await repository.update(listId, validatedData);
 
-    revalidatePath('/');
-    revalidatePath(`/lists/${listId}`);
+    // Note: React Query handles cache invalidation
     
     return {
       success: true,
@@ -488,8 +481,7 @@ export async function clearCompletedItemsAction(listId: string): Promise<ActionR
     const repository = getListRepository();
     const list = await repository.clearCompletedItems(listId);
 
-    revalidatePath('/');
-    revalidatePath(`/lists/${listId}`);
+    // Note: React Query handles cache invalidation
     
     return {
       success: true,
@@ -583,8 +575,7 @@ export async function addItemToListWithAutoCreateAction(listId: string, itemName
         collected: false,
       });
 
-      revalidatePath('/');
-      revalidatePath(`/lists/${listId}`);
+      // Note: React Query handles cache invalidation
       
       return {
         success: true,
@@ -600,8 +591,7 @@ export async function addItemToListWithAutoCreateAction(listId: string, itemName
       collected: false,
     });
 
-    revalidatePath('/');
-    revalidatePath(`/lists/${listId}`);
+    // Note: React Query handles cache invalidation
     
     return {
       success: true,

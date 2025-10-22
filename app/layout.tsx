@@ -4,6 +4,7 @@ import "./globals.css";
 import { MuiThemeProvider } from '@/components/providers/MuiThemeProvider';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { SnackbarProvider } from '@/components/providers/SnackbarProvider';
+import { QueryProvider } from '@/components/providers/QueryProvider';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { Container } from '@/components/ui/Container';
 const geistSans = Geist({
@@ -31,16 +32,18 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ThemeProvider>
-          <MuiThemeProvider>
-            <SnackbarProvider>
-              <Container maxWidth="lg" sx={{ py: 4 }}>
-                <AppHeader />
-              </Container>
-              {children}
-            </SnackbarProvider>
-          </MuiThemeProvider>
-        </ThemeProvider>
+        <QueryProvider>
+          <ThemeProvider>
+            <MuiThemeProvider>
+              <SnackbarProvider>
+                <Container maxWidth="lg" sx={{ py: 4 }}>
+                  <AppHeader />
+                </Container>
+                {children}
+              </SnackbarProvider>
+            </MuiThemeProvider>
+          </ThemeProvider>
+        </QueryProvider>
       </body>
     </html>
   );

@@ -247,38 +247,43 @@ export class SupabaseListRepository implements IListRepository {
    * Add an item to a shopping list
    */
   async addItem(listId: string, item: ShoppingListItem): Promise<ShoppingList> {
-    // Check if list exists
-    const list = await this.getById(listId);
-    if (!list) {
-      throw new NotFoundError('Shopping list', listId);
-    }
+    // Try to update if exists, otherwise insert
+    const { data: existing } = await this.supabase
+      .from('shopping_list_items')
+      .select('id')
+      .eq('list_id', listId)
+      .eq('item_id', item.itemId)
+      .single();
 
-    // Check if item already exists in the list
-    const existingItemIndex = list.items.findIndex(listItem => listItem.itemId === item.itemId);
-    
-    if (existingItemIndex !== -1) {
+    if (existing) {
       // Update existing item
       return this.updateItem(listId, item.itemId, item);
-    } else {
-      // Add new item
-      const listItem = {
-        id: uuidv4(),
-        list_id: listId,
-        item_id: item.itemId,
-        quantity: item.quantity,
-        collected: item.collected,
-      };
-
-      const { error } = await this.supabase
-        .from('shopping_list_items')
-        .insert(listItem);
-
-      if (error) {
-        throw new ValidationError(`Failed to add item to shopping list: ${error.message}`);
-      }
     }
 
-    // Return the updated list
+    // Add new item
+    const listItem = {
+      id: uuidv4(),
+      list_id: listId,
+      item_id: item.itemId,
+      quantity: item.quantity,
+      collected: item.collected,
+    };
+
+    const { error } = await this.supabase
+      .from('shopping_list_items')
+      .insert(listItem);
+
+    if (error) {
+      throw new ValidationError(`Failed to add item to shopping list: ${error.message}`);
+    }
+
+    // Update list timestamp
+    await this.supabase
+      .from('shopping_lists')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', listId);
+
+    // Return the updated list - still need full data for consistency
     const updatedList = await this.getById(listId);
     if (!updatedList) {
       throw new ValidationError('Failed to retrieve updated shopping list');
@@ -300,6 +305,12 @@ export class SupabaseListRepository implements IListRepository {
     if (error) {
       throw new ValidationError(`Failed to remove item from shopping list: ${error.message}`);
     }
+
+    // Update list timestamp
+    await this.supabase
+      .from('shopping_lists')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', listId);
 
     // Return the updated list
     const updatedList = await this.getById(listId);
@@ -328,6 +339,12 @@ export class SupabaseListRepository implements IListRepository {
     if (error) {
       throw new ValidationError(`Failed to update item in shopping list: ${error.message}`);
     }
+
+    // Update list timestamp
+    await this.supabase
+      .from('shopping_lists')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', listId);
 
     // Return the updated list
     const updatedList = await this.getById(listId);
@@ -363,6 +380,12 @@ export class SupabaseListRepository implements IListRepository {
     if (error) {
       throw new ValidationError(`Failed to toggle item collected status: ${error.message}`);
     }
+
+    // Update list timestamp
+    await this.supabase
+      .from('shopping_lists')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', listId);
 
     // Return the updated list
     const updatedList = await this.getById(listId);
@@ -441,6 +464,12 @@ export class SupabaseListRepository implements IListRepository {
     if (error) {
       throw new ValidationError(`Failed to clear completed items: ${error.message}`);
     }
+
+    // Update list timestamp
+    await this.supabase
+      .from('shopping_lists')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', listId);
 
     // Return the updated list
     const updatedList = await this.getById(listId);

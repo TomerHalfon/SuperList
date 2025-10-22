@@ -1,19 +1,11 @@
 import React from 'react';
-import { getAllListsAction } from '@/actions/lists';
 import { initializeStorage } from '@/lib/storage';
 import { HomeClient } from './HomeClient';
 
 export default async function Home() {
-  // Initialize storage on first load
+  // Initialize storage on first load (only needed for JSON storage)
   await initializeStorage();
   
-  // Fetch all shopping lists
-  const result = await getAllListsAction();
-  
-  return (
-    <HomeClient 
-      lists={result.data || []} 
-      error={result.success ? undefined : result.error}
-    />
-  );
+  // Data fetching is now handled by React Query in HomeClient
+  return <HomeClient />;
 }

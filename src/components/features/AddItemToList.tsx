@@ -5,7 +5,7 @@ import { Box } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import { Autocomplete, AutocompleteOption } from '@/components/ui/Autocomplete';
 import { Item } from '@/types/shopping-list';
-import { addItemToListWithAutoCreateAction } from '@/actions/lists';
+import { useAddItemToListWithAutoCreate } from '@/hooks/useListMutations';
 import { useSnackbar } from '@/components/providers/SnackbarProvider';
 
 export interface AddItemToListProps {
@@ -21,8 +21,8 @@ export const AddItemToList: React.FC<AddItemToListProps> = ({
 }) => {
   const [searchInput, setSearchInput] = useState('');
   const [selectedOption, setSelectedOption] = useState<AutocompleteOption | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const { showSuccess, showError, showWarning } = useSnackbar();
+  const addItemMutation = useAddItemToListWithAutoCreate();
 
   // Convert items to autocomplete options
   const itemOptions = useMemo(() => {
@@ -71,46 +71,38 @@ export const AddItemToList: React.FC<AddItemToListProps> = ({
   }, [selectedOption]);
 
   const handleSubmit = useCallback(async () => {
-    if (!searchInput.trim() || isSubmitting) {
+    if (!searchInput.trim() || addItemMutation.isPending) {
       return;
     }
-
-    setIsSubmitting(true);
     
     try {
-      const result = await addItemToListWithAutoCreateAction(listId, searchInput.trim());
+      const result = await addItemMutation.mutateAsync({ listId, itemName: searchInput.trim() });
       
-      if (result.success) {
-        // Clear the input
-        setSearchInput('');
-        setSelectedOption(null);
-        
-        // Show appropriate message
-        if (result.warning) {
-          showWarning(result.warning);
-        } else {
-          showSuccess(`${searchInput.trim()} added to the list!`);
-        }
-        
-        // Notify parent component
-        onItemAdded?.();
+      // Clear the input
+      setSearchInput('');
+      setSelectedOption(null);
+      
+      // Show appropriate message
+      if (result.warning) {
+        showWarning(result.warning);
       } else {
-        showError(result.error || 'Failed to add item to list');
+        showSuccess(`${searchInput.trim()} added to the list!`);
       }
+      
+      // Notify parent component
+      onItemAdded?.();
     } catch (error) {
       console.error('Error adding item to list:', error);
-      showError('Failed to add item to list');
-    } finally {
-      setIsSubmitting(false);
+      showError(error instanceof Error ? error.message : 'Failed to add item to list');
     }
-  }, [listId, searchInput, isSubmitting, showSuccess, showError, showWarning, onItemAdded]);
+  }, [listId, searchInput, addItemMutation, showSuccess, showError, showWarning, onItemAdded]);
 
   const handleKeyPress = useCallback((event: React.KeyboardEvent) => {
-    if (event.key === 'Enter' && !isSubmitting) {
+    if (event.key === 'Enter' && !addItemMutation.isPending) {
       event.preventDefault();
       handleSubmit();
     }
-  }, [handleSubmit, isSubmitting]);
+  }, [handleSubmit, addItemMutation.isPending]);
 
   return (
     <Box
@@ -154,7 +146,7 @@ export const AddItemToList: React.FC<AddItemToListProps> = ({
           size="small"
           noOptionsText="Type to search or add a new item"
           loadingText="Loading..."
-          disabled={isSubmitting}
+          disabled={addItemMutation.isPending}
           onKeyDown={handleKeyPress}
           freeSolo={true}
           sx={{

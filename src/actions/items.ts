@@ -1,6 +1,5 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
 import { getItemRepository } from '@/lib/storage';
 import { validateCreateItem, validateUpdateItem } from '@/lib/validations/item-schemas';
 import { StorageError, ValidationError } from '@/lib/storage/interfaces';
@@ -84,7 +83,7 @@ export async function createItemAction(formData: FormData): Promise<ActionResult
     const repository = getItemRepository();
     const item = await repository.create(validatedData);
 
-    revalidatePath('/');
+    // Note: React Query handles cache invalidation
     
     return {
       success: true,
@@ -133,7 +132,7 @@ export async function updateItemAction(id: string, formData: FormData): Promise<
     const repository = getItemRepository();
     const item = await repository.update(id, validatedData);
 
-    revalidatePath('/');
+    // Note: React Query handles cache invalidation
     
     return {
       success: true,
@@ -179,7 +178,7 @@ export async function deleteItemAction(id: string): Promise<ActionResult> {
     const repository = getItemRepository();
     await repository.delete(id);
 
-    revalidatePath('/');
+    // Note: React Query handles cache invalidation
     
     return {
       success: true,
