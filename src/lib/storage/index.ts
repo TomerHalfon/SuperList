@@ -151,8 +151,8 @@ export async function initializeStorage(): Promise<void> {
     // Import mock data for initialization
     const { mockItems, mockShoppingLists } = await import('@/lib/data/mock-data');
     
-    const itemRepo = getItemRepository() as JsonItemRepository;
-    const listRepo = getListRepository() as JsonListRepository;
+    const itemRepo = await getItemRepository() as JsonItemRepository;
+    const listRepo = await getListRepository() as JsonListRepository;
     
     await itemRepo.initializeWithDefaults(mockItems.items);
     await listRepo.initializeWithDefaults(mockShoppingLists.lists);
@@ -166,8 +166,8 @@ export async function initializeStorage(): Promise<void> {
  * Reset storage instances (useful for testing)
  */
 export function resetStorageInstances(): void {
-  itemRepository = null;
-  listRepository = null;
+  jsonItemRepository = null;
+  jsonListRepository = null;
 }
 
 /**
