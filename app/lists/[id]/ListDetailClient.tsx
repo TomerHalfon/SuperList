@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { ShoppingListHeader } from '@/components/features/ShoppingListHeader';
 import { ShoppingListItem } from '@/components/features/ShoppingListItem';
 import { AddItemToList } from '@/components/features/AddItemToList';
+import { ShoppingListDetailSkeleton } from '@/components/features/ShoppingListDetailSkeleton';
 import { DeleteListDialog } from '@/components/features/DeleteListDialog';
 import { EditItemQuantityDialog } from '@/components/features/EditItemQuantityDialog';
 import { ShoppingListItem as ShoppingListItemType, Item } from '@/types/shopping-list';
@@ -193,15 +194,7 @@ export function ListDetailClient({ listId }: ListDetailClientProps) {
 
   // Loading state
   if (listLoading || itemsLoading) {
-    return (
-      <Container maxWidth="lg">
-        <Box sx={{ textAlign: 'center', py: 8 }}>
-          <Typography variant="h6" color="textSecondary">
-            Loading shopping list...
-          </Typography>
-        </Box>
-      </Container>
-    );
+    return <ShoppingListDetailSkeleton />;
   }
 
   // Error state

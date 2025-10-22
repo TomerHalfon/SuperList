@@ -6,6 +6,7 @@ import { Box } from '@/components/ui/Box';
 import { Typography } from '@/components/ui/Typography';
 import { Fab } from '@/components/ui/Fab';
 import { ShoppingListsGrid } from '@/components/features/ShoppingListsGrid';
+import { ShoppingListsGridSkeleton } from '@/components/features/ShoppingListsGridSkeleton';
 import { DeleteListDialog } from '@/components/features/DeleteListDialog';
 import { ShoppingList } from '@/types/shopping-list';
 import { useLists, useCreateList, useDeleteList } from '@/hooks/useLists';
@@ -61,15 +62,7 @@ export function HomeClient() {
 
   // Loading state
   if (isLoading) {
-    return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Box sx={{ textAlign: 'center', py: 8 }}>
-          <Typography variant="h6" color="textSecondary">
-            Loading shopping lists...
-          </Typography>
-        </Box>
-      </Container>
-    );
+    return <ShoppingListsGridSkeleton />;
   }
 
   // Error state
