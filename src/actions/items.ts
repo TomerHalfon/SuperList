@@ -17,7 +17,7 @@ export interface ActionResult<T = any> {
  */
 export async function getAllItemsAction(): Promise<ActionResult> {
   try {
-    const repository = getItemRepository();
+    const repository = await getItemRepository();
     const items = await repository.getAll();
     
     return {
@@ -45,7 +45,7 @@ export async function getItemByIdAction(id: string): Promise<ActionResult> {
       };
     }
 
-    const repository = getItemRepository();
+    const repository = await getItemRepository();
     const item = await repository.getById(id);
     
     if (!item) {
@@ -80,7 +80,7 @@ export async function createItemAction(formData: FormData): Promise<ActionResult
     };
 
     const validatedData = validateCreateItem(rawData);
-    const repository = getItemRepository();
+    const repository = await getItemRepository();
     const item = await repository.create(validatedData);
 
     // Note: React Query handles cache invalidation
@@ -129,7 +129,7 @@ export async function updateItemAction(id: string, formData: FormData): Promise<
     if (tags) rawData.tags = JSON.parse(tags as string);
 
     const validatedData = validateUpdateItem(rawData);
-    const repository = getItemRepository();
+    const repository = await getItemRepository();
     const item = await repository.update(id, validatedData);
 
     // Note: React Query handles cache invalidation
@@ -175,7 +175,7 @@ export async function deleteItemAction(id: string): Promise<ActionResult> {
       };
     }
 
-    const repository = getItemRepository();
+    const repository = await getItemRepository();
     await repository.delete(id);
 
     // Note: React Query handles cache invalidation
@@ -205,7 +205,7 @@ export async function deleteItemAction(id: string): Promise<ActionResult> {
  */
 export async function searchItemsAction(query: string): Promise<ActionResult> {
   try {
-    const repository = getItemRepository();
+    const repository = await getItemRepository();
     const items = await repository.search(query);
     
     return {
@@ -233,7 +233,7 @@ export async function getItemsByTagAction(tag: string): Promise<ActionResult> {
       };
     }
 
-    const repository = getItemRepository();
+    const repository = await getItemRepository();
     const items = await repository.getByTag(tag);
     
     return {
@@ -254,7 +254,7 @@ export async function getItemsByTagAction(tag: string): Promise<ActionResult> {
  */
 export async function getItemsByTagsAction(tags: string[]): Promise<ActionResult> {
   try {
-    const repository = getItemRepository();
+    const repository = await getItemRepository();
     const items = await repository.getByTags(tags);
     
     return {

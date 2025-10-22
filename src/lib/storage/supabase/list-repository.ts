@@ -1,8 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
 import { ShoppingList, ShoppingListItem } from '@/types/shopping-list';
 import { IListRepository, CreateListInput, UpdateListInput, NotFoundError, ValidationError } from '../interfaces';
-import { getSupabaseClient } from './supabase-client';
 import { validateCreateList, validateUpdateList } from '@/lib/validations/list-schemas';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/supabase';
 
 // Database response types for joins
 interface ShoppingListWithItems {
@@ -27,7 +28,11 @@ interface ShoppingListWithItems {
 }
 
 export class SupabaseListRepository implements IListRepository {
-  private readonly supabase = getSupabaseClient();
+  private readonly supabase: SupabaseClient<Database>;
+
+  constructor(supabaseClient: SupabaseClient<Database>) {
+    this.supabase = supabaseClient as SupabaseClient<Database>;
+  }
 
   /**
    * Get all shopping lists

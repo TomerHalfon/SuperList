@@ -75,9 +75,13 @@ interface IListRepository {
 Provides a unified interface to get repository instances:
 
 ```typescript
-// Get repositories
-const itemRepo = getItemRepository();
-const listRepo = getListRepository();
+// Get repositories (async for server-side)
+const itemRepo = await getItemRepository();
+const listRepo = await getListRepository();
+
+// Get repositories (sync for client-side)
+const clientItemRepo = getClientItemRepository();
+const clientListRepo = getClientListRepository();
 
 // Initialize with default data
 await initializeStorage();
@@ -137,10 +141,10 @@ class JsonListRepository implements IListRepository {
 
 export async function toggleItemCollectedAction(listId: string, itemId: string) {
   try {
-    const repository = getListRepository();
+    const repository = await getListRepository();
     const list = await repository.toggleItemCollected(listId, itemId);
     
-    revalidatePath(`/lists/${listId}`);
+    // Note: React Query handles cache invalidation
     return { success: true, data: list };
   } catch (error) {
     return { success: false, error: 'Failed to toggle item' };
@@ -148,12 +152,12 @@ export async function toggleItemCollectedAction(listId: string, itemId: string) 
 }
 ```
 
-### Direct Repository Usage
+### Direct Repository Usage (Server-Side)
 
 ```typescript
 // In Server Components or API routes
-const itemRepo = getItemRepository();
-const listRepo = getListRepository();
+const itemRepo = await getItemRepository();
+const listRepo = await getListRepository();
 
 // Get all items
 const items = await itemRepo.getAll();
@@ -170,6 +174,17 @@ const updatedList = await listRepo.addItem(newList.id, {
   quantity: 2,
   collected: false
 });
+```
+
+### Client-Side Repository Usage
+
+```typescript
+// In Client Components with 'use client'
+const itemRepo = getClientItemRepository();
+const listRepo = getClientListRepository();
+
+// Note: Client repositories only work with Supabase
+// JSON storage is server-side only
 ```
 
 ## 📊 Data Models

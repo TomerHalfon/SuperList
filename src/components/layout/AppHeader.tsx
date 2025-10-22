@@ -1,9 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box } from '@/components/ui/Box';
 import { Typography } from '@/components/ui/Typography';
 import { ThemeSwitcher } from '@/components/features/ThemeSwitcher';
+import { UserMenu } from '@/components/features/auth/UserMenu';
+import { onAuthStateChange } from '@/lib/auth/auth-helpers';
+import type { User } from '@/types/auth';
 
 interface AppHeaderProps {
   title?: string;
@@ -16,6 +19,20 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   subtitle = 'Your Shopping Lists Dashboard',
   showThemeSwitcher = true,
 }) => {
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    // Subscribe to auth state changes to get user
+    // This also immediately fires with the current session
+    const subscription = onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
   return (
     <Box
       sx={{
@@ -54,15 +71,17 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         </Typography>
       </Box>
       
-      {showThemeSwitcher && (
-        <Box sx={{ 
-          flexShrink: 0,
-          alignSelf: 'flex-start',
-          pt: { xs: 0.5, sm: 0 } // Small top padding on mobile
-        }}>
-          <ThemeSwitcher />
-        </Box>
-      )}
+      <Box sx={{ 
+        flexShrink: 0,
+        alignSelf: 'flex-start',
+        pt: { xs: 0.5, sm: 0 },
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1,
+      }}>
+        {showThemeSwitcher && <ThemeSwitcher />}
+        {user && <UserMenu user={user} />}
+      </Box>
     </Box>
   );
 };

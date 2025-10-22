@@ -1,11 +1,16 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Item } from '@/types/shopping-list';
 import { IItemRepository, CreateItemInput, UpdateItemInput, NotFoundError, ValidationError } from '../interfaces';
-import { getSupabaseClient } from './supabase-client';
 import { validateCreateItem, validateUpdateItem } from '@/lib/validations/item-schemas';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/supabase';
 
 export class SupabaseItemRepository implements IItemRepository {
-  private readonly supabase = getSupabaseClient();
+  private readonly supabase: SupabaseClient<Database>;
+
+  constructor(supabaseClient: SupabaseClient<Database>) {
+    this.supabase = supabaseClient;
+  }
 
   /**
    * Get all items

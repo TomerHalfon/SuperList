@@ -1,35 +1,22 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-
-// Supabase client singleton
-let supabaseClient: SupabaseClient | null = null;
-
 /**
- * Get or create the Supabase client instance
+ * @deprecated This file is deprecated. Import from specific files instead:
+ * - For client components: import from './client'
+ * - For server components: import from './server'
  */
-export function getSupabaseClient(): SupabaseClient {
-  if (!supabaseClient) {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    if (!supabaseUrl || !supabaseAnonKey) {
-      throw new Error(
-        'Missing Supabase environment variables. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY'
-      );
-    }
+// Re-export client functions
+export { createClientSupabaseClient, resetSupabaseClient } from './client';
 
-    supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: false, // Disable session persistence for server-side usage
-      },
-    });
+// Re-export server functions  
+export { createServerSupabaseClient } from './server';
+
+// Legacy function for backward compatibility
+export function getSupabaseClient() {
+  if (typeof window !== 'undefined') {
+    const { createClientSupabaseClient } = require('./client');
+    return createClientSupabaseClient();
   }
-
-  return supabaseClient;
-}
-
-/**
- * Reset the Supabase client instance (useful for testing)
- */
-export function resetSupabaseClient(): void {
-  supabaseClient = null;
+  throw new Error(
+    'getSupabaseClient() called on server-side. Use createServerSupabaseClient() instead.'
+  );
 }

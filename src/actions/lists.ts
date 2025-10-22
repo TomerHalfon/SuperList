@@ -18,7 +18,7 @@ export interface ActionResult<T = any> {
  */
 export async function getAllListsAction(): Promise<ActionResult> {
   try {
-    const repository = getListRepository();
+    const repository = await getListRepository();
     const lists = await repository.getAll();
     
     return {
@@ -46,7 +46,7 @@ export async function getListByIdAction(id: string): Promise<ActionResult> {
       };
     }
 
-    const repository = getListRepository();
+    const repository = await getListRepository();
     const list = await repository.getById(id);
     
     if (!list) {
@@ -80,7 +80,7 @@ export async function createListAction(formData: FormData): Promise<ActionResult
     };
 
     const validatedData = validateCreateList(rawData);
-    const repository = getListRepository();
+    const repository = await getListRepository();
     const list = await repository.create(validatedData);
 
     // Note: React Query handles cache invalidation, no need for revalidatePath
@@ -127,7 +127,7 @@ export async function updateListAction(id: string, formData: FormData): Promise<
     if (items) rawData.items = JSON.parse(items as string);
 
     const validatedData = validateUpdateList(rawData);
-    const repository = getListRepository();
+    const repository = await getListRepository();
     const list = await repository.update(id, validatedData);
 
     // Note: React Query handles cache invalidation
@@ -173,7 +173,7 @@ export async function deleteListAction(id: string): Promise<ActionResult> {
       };
     }
 
-    const repository = getListRepository();
+    const repository = await getListRepository();
     await repository.delete(id);
 
     // Note: React Query handles cache invalidation
@@ -227,7 +227,7 @@ export async function addItemToListAction(listId: string, formData: FormData): P
       collected,
     };
 
-    const repository = getListRepository();
+    const repository = await getListRepository();
     const list = await repository.addItem(listId, rawData);
 
     // Note: React Query handles cache invalidation
@@ -265,7 +265,7 @@ export async function removeItemFromListAction(listId: string, itemId: string): 
       };
     }
 
-    const repository = getListRepository();
+    const repository = await getListRepository();
     const list = await repository.removeItem(listId, itemId);
 
     // Note: React Query handles cache invalidation
@@ -303,7 +303,7 @@ export async function toggleItemCollectedAction(listId: string, itemId: string):
       };
     }
 
-    const repository = getListRepository();
+    const repository = await getListRepository();
     const list = await repository.toggleItemCollected(listId, itemId);
 
     // Note: React Query handles cache invalidation
@@ -348,7 +348,7 @@ export async function updateListItemAction(listId: string, itemId: string, formD
     if (quantity) rawData.quantity = parseInt(quantity as string);
     if (collected !== null) rawData.collected = collected === 'true';
 
-    const repository = getListRepository();
+    const repository = await getListRepository();
     const list = await repository.updateItem(listId, itemId, rawData);
 
     // Note: React Query handles cache invalidation
@@ -386,7 +386,7 @@ export async function duplicateListAction(id: string, newName?: string): Promise
       };
     }
 
-    const repository = getListRepository();
+    const repository = await getListRepository();
     const list = await repository.duplicateList(id, newName);
 
     // Note: React Query handles cache invalidation
@@ -432,7 +432,7 @@ export async function updateListNameAction(listId: string, newName: string): Pro
     }
 
     const validatedData = validateUpdateList({ name: newName.trim() });
-    const repository = getListRepository();
+    const repository = await getListRepository();
     const list = await repository.update(listId, validatedData);
 
     // Note: React Query handles cache invalidation
@@ -478,7 +478,7 @@ export async function clearCompletedItemsAction(listId: string): Promise<ActionR
       };
     }
 
-    const repository = getListRepository();
+    const repository = await getListRepository();
     const list = await repository.clearCompletedItems(listId);
 
     // Note: React Query handles cache invalidation
@@ -526,8 +526,8 @@ export async function addItemToListWithAutoCreateAction(listId: string, itemName
     const trimmedName = itemName.trim();
     
     // Get repositories
-    const listRepository = getListRepository();
-    const itemRepository = getItemRepository();
+    const listRepository = await getListRepository();
+    const itemRepository = await getItemRepository();
     
     // Check if list exists
     const list = await listRepository.getById(listId);
