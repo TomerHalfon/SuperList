@@ -1,0 +1,2185 @@
+---
+alwaysApply: false
+---
+
+# Custom Hooks & State Management Rules
+
+## React Query (TanStack Query v5) Patterns
+
+### 1. QueryClient Configuration
+```typescript
+// src/components/providers/QueryProvider.tsx
+'use client';
+
+import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+// Create a client with optimized defaults
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Cache data for 5 minutes by default
+      staleTime: 5 * 60 * 1000,
+      // Keep unused data in cache for 10 minutes
+      gcTime: 10 * 60 * 1000,
+      // Retry failed requests twice
+      retry: 2,
+      // Refetch on window focus for fresh data
+      refetchOnWindowFocus: true,
+      // Don't refetch on mount if data is fresh
+      refetchOnMount: false,
+    },
+    mutations: {
+      // Retry failed mutations once
+      retry: 1,
+    },
+  },
+});
+
+interface QueryProviderProps {
+  children: React.ReactNode;
+}
+
+export function QueryProvider({ children }: QueryProviderProps) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      {children}
+    </QueryClientProvider>
+  );
+}
+```
+
+### 2. Query Key Factories
+```typescript
+// src/hooks/useItems.ts
+export const itemKeys = {
+  all: ['items'] as const,
+  detail: (id: string) => ['items', id] as const,
+  search: (query: string) => ['items', 'search', query] as const,
+  byTag: (tag: string) => ['items', 'tag', tag] as const,
+  byTags: (tags: string[]) => ['items', 'tags', tags] as const,
+};
+
+// src/hooks/useLists.ts
+export const listKeys = {
+  all: ['lists'] as const,
+  detail: (id: string) => ['lists', id] as const,
+  byUser: (userId: string) => ['lists', 'user', userId] as const,
+};
+```
+
+### 3. Query Hooks with Server Actions
+```typescript
+// src/hooks/useItems.ts
+'use client';
+
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Item } from '@/types/shopping-list';
+import { 
+  getAllItemsAction,
+  getItemByIdAction,
+  createItemAction,
+  updateItemAction,
+  deleteItemAction,
+  searchItemsAction,
+} from '@/actions/items';
+
+/**
+ * Hook to fetch all items
+ */
+export function useItems() {
+  return useQuery({
+    queryKey: itemKeys.all,
+    queryFn: async () => {
+      const result = await getAllItemsAction();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch items');
+      }
+      return result.data as Item[];
+    },
+  });
+}
+
+/**
+ * Hook to fetch a single item by ID
+ */
+export function useItem(id: string) {
+  return useQuery({
+    queryKey: itemKeys.detail(id),
+    queryFn: async () => {
+      const result = await getItemByIdAction(id);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch item');
+      }
+      return result.data as Item;
+    },
+    enabled: !!id,
+  });
+}
+
+/**
+ * Hook to search items
+ */
+export function useSearchItems(query: string) {
+  return useQuery({
+    queryKey: itemKeys.search(query),
+    queryFn: async () => {
+      const result = await searchItemsAction(query);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to search items');
+      }
+      return result.data as Item[];
+    },
+    enabled: query.length > 0,
+  });
+}
+```
+
+### 4. Optimistic Updates with Mutations
+```typescript
+// src/hooks/useListMutations.ts
+'use client';
+
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { ShoppingList, ShoppingListItem } from '@/types/shopping-list';
+import { 
+  addItemToListAction,
+  removeItemFromListAction,
+  toggleItemCollectedAction,
+  updateListItemAction,
+} from '@/actions/lists';
+import { listKeys } from './useLists';
+
+/**
+ * Hook to toggle item collected status - MOST FREQUENTLY USED
+ */
+export function useToggleItemCollected() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ listId, itemId }: { listId: string; itemId: string }) => {
+      const result = await toggleItemCollectedAction(listId, itemId);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to toggle item');
+      }
+      return result.data as ShoppingList;
+    },
+    onMutate: async ({ listId, itemId }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: listKeys.detail(listId) });
+
+      // Snapshot the previous value
+      const previousList = queryClient.getQueryData<ShoppingList>(listKeys.detail(listId));
+
+      // Optimistically toggle the item
+      if (previousList) {
+        queryClient.setQueryData<ShoppingList>(listKeys.detail(listId), {
+          ...previousList,
+          items: previousList.items.map(item => 
+            item.itemId === itemId 
+              ? { ...item, collected: !item.collected }
+              : item
+          ),
+          updatedAt: new Date().toISOString(),
+        });
+      }
+
+      return { previousList };
+    },
+    onError: (err, { listId }, context) => {
+      // Rollback on error
+      if (context?.previousList) {
+        queryClient.setQueryData(listKeys.detail(listId), context.previousList);
+      }
+    },
+    onSettled: (data, error, { listId }) => {
+      // Refetch in background to ensure consistency
+      queryClient.invalidateQueries({ queryKey: listKeys.detail(listId) });
+      queryClient.invalidateQueries({ queryKey: listKeys.all });
+    },
+  });
+}
+
+/**
+ * Hook to add an item to a list
+ */
+export function useAddItemToList() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ 
+      listId, 
+      itemId, 
+      quantity = 1 
+    }: { 
+      listId: string; 
+      itemId: string; 
+      quantity?: number; 
+    }) => {
+      const formData = new FormData();
+      formData.append('itemId', itemId);
+      formData.append('quantity', quantity.toString());
+      formData.append('collected', 'false');
+      
+      const result = await addItemToListAction(listId, formData);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to add item to list');
+      }
+      return result.data as ShoppingList;
+    },
+    onMutate: async ({ listId, itemId, quantity = 1 }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: listKeys.detail(listId) });
+
+      // Snapshot the previous value
+      const previousList = queryClient.getQueryData<ShoppingList>(listKeys.detail(listId));
+
+      // Optimistically add the item
+      if (previousList) {
+        const newItem: ShoppingListItem = {
+          itemId,
+          quantity,
+          collected: false,
+        };
+        
+        queryClient.setQueryData<ShoppingList>(listKeys.detail(listId), {
+          ...previousList,
+          items: [...previousList.items, newItem],
+          updatedAt: new Date().toISOString(),
+        });
+      }
+
+      return { previousList };
+    },
+    onError: (err, { listId }, context) => {
+      // Rollback on error
+      if (context?.previousList) {
+        queryClient.setQueryData(listKeys.detail(listId), context.previousList);
+      }
+    },
+    onSettled: (data, error, { listId }) => {
+      // Refetch in background to ensure consistency
+      queryClient.invalidateQueries({ queryKey: listKeys.detail(listId) });
+      queryClient.invalidateQueries({ queryKey: listKeys.all });
+    },
+  });
+}
+```
+
+### 5. List Query Hooks
+```typescript
+// src/hooks/useLists.ts
+'use client';
+
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ShoppingList } from '@/types/shopping-list';
+import { 
+  getAllListsAction, 
+  getListByIdAction,
+  createListAction,
+  deleteListAction,
+  updateListNameAction,
+  duplicateListAction,
+  clearCompletedItemsAction
+} from '@/actions/lists';
+import { useRouter } from 'next/navigation';
+
+export const listKeys = {
+  all: ['lists'] as const,
+  detail: (id: string) => ['lists', id] as const,
+};
+
+/**
+ * Hook to fetch all shopping lists
+ */
+export function useLists() {
+  return useQuery({
+    queryKey: listKeys.all,
+    queryFn: async () => {
+      const result = await getAllListsAction();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch lists');
+      }
+      return result.data as ShoppingList[];
+    },
+  });
+}
+
+/**
+ * Hook to fetch a single shopping list by ID
+ */
+export function useList(id: string) {
+  return useQuery({
+    queryKey: listKeys.detail(id),
+    queryFn: async () => {
+      const result = await getListByIdAction(id);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch list');
+      }
+      return result.data as ShoppingList;
+    },
+    enabled: !!id,
+  });
+}
+
+/**
+ * Hook to create a new list
+ */
+export function useCreateList() {
+  const queryClient = useQueryClient();
+  const router = useRouter();
+
+  return useMutation({
+    mutationFn: async (formData: FormData) => {
+      const result = await createListAction(formData);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create list');
+      }
+      return result.data as ShoppingList;
+    },
+    onSuccess: (newList) => {
+      // Invalidate and refetch lists
+      queryClient.invalidateQueries({ queryKey: listKeys.all });
+      
+      // Navigate to the new list
+      router.push(`/lists/${newList.id}`);
+    },
+  });
+}
+```
+
+### 6. Cache Management Patterns
+```typescript
+// Manual cache updates for better UX
+export function useUpdateListName() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ listId, name }: { listId: string; name: string }) => {
+      const formData = new FormData();
+      formData.append('name', name);
+      
+      const result = await updateListNameAction(listId, formData);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update list name');
+      }
+      return result.data as ShoppingList;
+    },
+    onMutate: async ({ listId, name }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: listKeys.detail(listId) });
+
+      // Snapshot the previous value
+      const previousList = queryClient.getQueryData<ShoppingList>(listKeys.detail(listId));
+
+      // Optimistically update the list name
+      if (previousList) {
+        queryClient.setQueryData<ShoppingList>(listKeys.detail(listId), {
+          ...previousList,
+          name,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+
+      return { previousList };
+    },
+    onError: (err, { listId }, context) => {
+      // Rollback on error
+      if (context?.previousList) {
+        queryClient.setQueryData(listKeys.detail(listId), context.previousList);
+      }
+    },
+    onSettled: (data, error, { listId }) => {
+      // Refetch to ensure consistency
+      queryClient.invalidateQueries({ queryKey: listKeys.detail(listId) });
+      queryClient.invalidateQueries({ queryKey: listKeys.all });
+    },
+  });
+}
+```
+
+### 7. Error Handling and Loading States
+```typescript
+// Component usage with proper error handling
+export const ShoppingListComponent: React.FC<{ listId: string }> = ({ listId }) => {
+  const { data: list, isLoading, error } = useList(listId);
+  const toggleItemMutation = useToggleItemCollected();
+
+  if (isLoading) {
+    return <ShoppingListSkeleton />;
+  }
+
+  if (error) {
+    return (
+      <Alert severity="error">
+        Failed to load list: {error.message}
+      </Alert>
+    );
+  }
+
+  if (!list) {
+    return <EmptyState />;
+  }
+
+  const handleToggleItem = (itemId: string) => {
+    toggleItemMutation.mutate({ listId, itemId });
+  };
+
+  return (
+    <div>
+      {list.items.map(item => (
+        <ListItem
+          key={item.itemId}
+          item={item}
+          onToggle={() => handleToggleItem(item.itemId)}
+          disabled={toggleItemMutation.isPending}
+        />
+      ))}
+    </div>
+  );
+};
+```
+
+### 8. Background Refetching and Stale Data
+```typescript
+// Configure background refetching for real-time updates
+export function useListsWithBackgroundSync() {
+  return useQuery({
+    queryKey: listKeys.all,
+    queryFn: async () => {
+      const result = await getAllListsAction();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch lists');
+      }
+      return result.data as ShoppingList[];
+    },
+    // Refetch every 30 seconds for real-time updates
+    refetchInterval: 30 * 1000,
+    // Refetch when window regains focus
+    refetchOnWindowFocus: true,
+    // Keep data fresh for 1 minute
+    staleTime: 60 * 1000,
+  });
+}
+```
+
+## Custom Hooks Architecture
+
+### 1. ActionResult Pattern
+```typescript
+// src/actions/lists.ts
+export interface ActionResult<T = any> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  details?: any;
+  warning?: string;
+}
+
+export async function createListAction(formData: FormData): Promise<ActionResult> {
+  try {
+    // Validation
+    const rawData = {
+      name: formData.get('name'),
+    };
+    
+    const validatedData = validateCreateList(rawData);
+
+    // Get repository and create list
+    const repository = await getListRepository();
+    const list = await repository.create(validatedData);
+
+    return { success: true, data: list };
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      return { success: false, error: error.message };
+    }
+    if (error instanceof StorageError) {
+      return { success: false, error: 'Failed to create list' };
+    }
+    
+    console.error('Unexpected error:', error);
+    return { success: false, error: 'An unexpected error occurred' };
+  }
+}
+```
+
+### 2. Separation of Query and Mutation Hooks
+```typescript
+// src/hooks/useItems.ts - Query hooks (read operations)
+'use client';
+
+import { useQuery } from '@tanstack/react-query';
+import { Item } from '@/types/shopping-list';
+import { 
+  getAllItemsAction,
+  getItemByIdAction,
+  searchItemsAction,
+} from '@/actions/items';
+
+export const itemKeys = {
+  all: ['items'] as const,
+  detail: (id: string) => ['items', id] as const,
+  search: (query: string) => ['items', 'search', query] as const,
+};
+
+export function useItems() {
+  return useQuery({
+    queryKey: itemKeys.all,
+    queryFn: async () => {
+      const result = await getAllItemsAction();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch items');
+      }
+      return result.data as Item[];
+    },
+  });
+}
+
+export function useItem(id: string) {
+  return useQuery({
+    queryKey: itemKeys.detail(id),
+    queryFn: async () => {
+      const result = await getItemByIdAction(id);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch item');
+      }
+      return result.data as Item;
+    },
+    enabled: !!id,
+  });
+}
+
+export function useSearchItems(query: string) {
+  return useQuery({
+    queryKey: itemKeys.search(query),
+    queryFn: async () => {
+      const result = await searchItemsAction(query);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to search items');
+      }
+      return result.data as Item[];
+    },
+    enabled: query.length > 0,
+  });
+}
+```
+
+```typescript
+// src/hooks/useItemMutations.ts - Mutation hooks (write operations)
+'use client';
+
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Item } from '@/types/shopping-list';
+import { 
+  createItemAction,
+  updateItemAction,
+  deleteItemAction,
+} from '@/actions/items';
+import { itemKeys } from './useItems';
+
+export function useCreateItem() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (formData: FormData) => {
+      const result = await createItemAction(formData);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create item');
+      }
+      return result.data as Item;
+    },
+    onSuccess: () => {
+      // Invalidate and refetch items
+      queryClient.invalidateQueries({ queryKey: itemKeys.all });
+    },
+  });
+}
+
+export function useUpdateItem() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, formData }: { id: string; formData: FormData }) => {
+      const result = await updateItemAction(id, formData);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update item');
+      }
+      return result.data as Item;
+    },
+    onSuccess: (updatedItem) => {
+      // Update the specific item in cache
+      queryClient.setQueryData(itemKeys.detail(updatedItem.id), updatedItem);
+      // Invalidate the list to ensure consistency
+      queryClient.invalidateQueries({ queryKey: itemKeys.all });
+    },
+  });
+}
+
+export function useDeleteItem() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const result = await deleteItemAction(id);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to delete item');
+      }
+    },
+    onSuccess: (_, deletedId) => {
+      // Remove the item from cache
+      queryClient.removeQueries({ queryKey: itemKeys.detail(deletedId) });
+      // Invalidate the list
+      queryClient.invalidateQueries({ queryKey: itemKeys.all });
+    },
+  });
+}
+```
+
+### 3. Debounce Hook for Search
+```typescript
+// src/hooks/useDebounce.ts
+'use client';
+
+import { useState, useEffect } from 'react';
+
+export function useDebounce<T>(value: T, delay: number = 300): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
+// Usage in search component
+export const SearchComponent: React.FC = () => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedQuery = useDebounce(searchQuery, 300);
+  const { data: searchResults, isLoading } = useSearchItems(debouncedQuery);
+
+  return (
+    <TextField
+      value={searchQuery}
+      onChange={(e) => setSearchQuery(e.target.value)}
+      placeholder="Search items..."
+    />
+  );
+};
+```
+
+### 4. Hook Composition Pattern
+```typescript
+// src/hooks/useShoppingList.ts - Composed hook for list management
+'use client';
+
+import { useList } from './useLists';
+import { useToggleItemCollected, useAddItemToList, useRemoveItemFromList } from './useListMutations';
+import { useItems } from './useItems';
+
+export function useShoppingList(listId: string) {
+  const { data: list, isLoading, error } = useList(listId);
+  const { data: allItems } = useItems();
+  
+  const toggleItemMutation = useToggleItemCollected();
+  const addItemMutation = useAddItemToList();
+  const removeItemMutation = useRemoveItemFromList();
+
+  const toggleItem = (itemId: string) => {
+    toggleItemMutation.mutate({ listId, itemId });
+  };
+
+  const addItem = (itemId: string, quantity: number = 1) => {
+    addItemMutation.mutate({ listId, itemId, quantity });
+  };
+
+  const removeItem = (itemId: string) => {
+    removeItemMutation.mutate({ listId, itemId });
+  };
+
+  return {
+    // Data
+    list,
+    allItems,
+    
+    // Loading states
+    isLoading,
+    isToggling: toggleItemMutation.isPending,
+    isAdding: addItemMutation.isPending,
+    isRemoving: removeItemMutation.isPending,
+    
+    // Error states
+    error,
+    toggleError: toggleItemMutation.error,
+    addError: addItemMutation.error,
+    removeError: removeItemMutation.error,
+    
+    // Actions
+    toggleItem,
+    addItem,
+    removeItem,
+  };
+}
+```
+
+### 5. Custom Hook for Form State
+```typescript
+// src/hooks/useFormState.ts
+'use client';
+
+import { useState, useCallback } from 'react';
+
+export function useFormState<T extends Record<string, any>>(initialState: T) {
+  const [formData, setFormData] = useState<T>(initialState);
+  const [errors, setErrors] = useState<Partial<Record<keyof T, string>>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const updateField = useCallback((field: keyof T, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: undefined }));
+    }
+  }, [errors]);
+
+  const setFieldError = useCallback((field: keyof T, error: string) => {
+    setErrors(prev => ({ ...prev, [field]: error }));
+  }, []);
+
+  const clearErrors = useCallback(() => {
+    setErrors({});
+  }, []);
+
+  const reset = useCallback(() => {
+    setFormData(initialState);
+    setErrors({});
+    setIsSubmitting(false);
+  }, [initialState]);
+
+  return {
+    formData,
+    errors,
+    isSubmitting,
+    setIsSubmitting,
+    updateField,
+    setFieldError,
+    clearErrors,
+    reset,
+  };
+}
+```
+
+## Snackbar Notification System
+
+### 1. Context and Types
+```typescript
+// src/types/snackbar.ts
+export type SnackbarSeverity = 'success' | 'error' | 'warning' | 'info';
+
+export interface SnackbarMessage {
+  id: string;
+  message: string;
+  severity: SnackbarSeverity;
+  duration?: number;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
+}
+
+export interface SnackbarContextType {
+  showMessage: (message: string, severity: SnackbarSeverity, options?: Partial<Omit<SnackbarMessage, 'id' | 'message' | 'severity'>>) => void;
+  showSuccess: (message: string, options?: Partial<Omit<SnackbarMessage, 'id' | 'message' | 'severity'>>) => void;
+  showError: (message: string, options?: Partial<Omit<SnackbarMessage, 'id' | 'message' | 'severity'>>) => void;
+  showWarning: (message: string, options?: Partial<Omit<SnackbarMessage, 'id' | 'message' | 'severity'>>) => void;
+  showInfo: (message: string, options?: Partial<Omit<SnackbarMessage, 'id' | 'message' | 'severity'>>) => void;
+  closeSnackbar: (id: string) => void;
+}
+```
+
+### 2. Snackbar Provider Implementation
+```typescript
+// src/components/providers/SnackbarProvider.tsx
+'use client';
+
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import { Snackbar, Alert, IconButton } from '@mui/material';
+import { SnackbarMessage, SnackbarContextType } from '@/types/snackbar';
+
+const SnackbarContext = createContext<SnackbarContextType | undefined>(undefined);
+
+interface SnackbarProviderProps {
+  children: React.ReactNode;
+}
+
+export const SnackbarProvider: React.FC<SnackbarProviderProps> = ({ children }) => {
+  const [messages, setMessages] = useState<SnackbarMessage[]>([]);
+  const [currentMessage, setCurrentMessage] = useState<SnackbarMessage | null>(null);
+  const [isHovered, setIsHovered] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const showMessage = useCallback((
+    message: string, 
+    severity: SnackbarSeverity, 
+    options?: Partial<Omit<SnackbarMessage, 'id' | 'message' | 'severity'>>
+  ) => {
+    const id = Math.random().toString(36).substr(2, 9);
+    const newMessage: SnackbarMessage = {
+      id,
+      message,
+      severity,
+      duration: 5000, // Default 5 seconds
+      ...options,
+    };
+
+    setMessages(prev => [...prev, newMessage]);
+  }, []);
+
+  const showSuccess = useCallback((message: string, options?: Partial<Omit<SnackbarMessage, 'id' | 'message' | 'severity'>>) => {
+    showMessage(message, 'success', options);
+  }, [showMessage]);
+
+  const showError = useCallback((message: string, options?: Partial<Omit<SnackbarMessage, 'id' | 'message' | 'severity'>>) => {
+    showMessage(message, 'error', options);
+  }, [showMessage]);
+
+  const showWarning = useCallback((message: string, options?: Partial<Omit<SnackbarMessage, 'id' | 'message' | 'severity'>>) => {
+    showMessage(message, 'warning', options);
+  }, [showMessage]);
+
+  const showInfo = useCallback((message: string, options?: Partial<Omit<SnackbarMessage, 'id' | 'message' | 'severity'>>) => {
+    showMessage(message, 'info', options);
+  }, [showMessage]);
+
+  const closeSnackbar = useCallback((id: string) => {
+    setMessages(prev => prev.filter(msg => msg.id !== id));
+    if (currentMessage?.id === id) {
+      setCurrentMessage(null);
+    }
+  }, [currentMessage]);
+
+  const handleClose = useCallback((event?: React.SyntheticEvent | Event, reason?: string) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    if (currentMessage) {
+      closeSnackbar(currentMessage.id);
+    }
+  }, [currentMessage, closeSnackbar]);
+
+  const handleMouseEnter = useCallback(() => {
+    setIsHovered(true);
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setIsHovered(false);
+    if (currentMessage && !isHovered) {
+      startAutoHide();
+    }
+  }, [currentMessage, isHovered]);
+
+  const startAutoHide = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    if (currentMessage && currentMessage.duration && !isHovered) {
+      timeoutRef.current = setTimeout(() => {
+        handleClose();
+      }, currentMessage.duration);
+    }
+  }, [currentMessage, isHovered, handleClose]);
+
+  // Process message queue
+  useEffect(() => {
+    if (messages.length > 0 && !currentMessage) {
+      const nextMessage = messages[0];
+      setCurrentMessage(nextMessage);
+      setMessages(prev => prev.slice(1));
+    }
+  }, [messages, currentMessage]);
+
+  // Start auto-hide when message changes
+  useEffect(() => {
+    if (currentMessage) {
+      startAutoHide();
+    }
+    
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [currentMessage, startAutoHide]);
+
+  const contextValue: SnackbarContextType = {
+    showMessage,
+    showSuccess,
+    showError,
+    showWarning,
+    showInfo,
+    closeSnackbar,
+  };
+
+  return (
+    <SnackbarContext.Provider value={contextValue}>
+      {children}
+      
+      {currentMessage && (
+        <Snackbar
+          open={!!currentMessage}
+          onClose={handleClose}
+          autoHideDuration={null} // We handle this manually
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          sx={{
+            '& .MuiSnackbarContent-root': {
+              padding: 0,
+            },
+          }}
+        >
+          <Alert
+            severity={currentMessage.severity}
+            onClose={() => handleClose()}
+            action={
+              currentMessage.action ? (
+                <IconButton
+                  size="small"
+                  onClick={currentMessage.action.onClick}
+                  color="inherit"
+                >
+                  {currentMessage.action.label}
+                </IconButton>
+              ) : undefined
+            }
+            sx={{
+              minWidth: 300,
+              maxWidth: 500,
+              '& .MuiAlert-message': {
+                flex: 1,
+              },
+            }}
+          >
+            {currentMessage.message}
+          </Alert>
+        </Snackbar>
+      )}
+    </SnackbarContext.Provider>
+  );
+};
+
+export const useSnackbar = (): SnackbarContextType => {
+  const context = useContext(SnackbarContext);
+  if (context === undefined) {
+    throw new Error('useSnackbar must be used within a SnackbarProvider');
+  }
+  return context;
+};
+```
+
+### 3. Usage in Components
+```typescript
+// Using snackbar in components
+export const ItemForm: React.FC = () => {
+  const { showSuccess, showError } = useSnackbar();
+  const createItemMutation = useCreateItem();
+
+  const handleSubmit = async (formData: FormData) => {
+    try {
+      await createItemMutation.mutateAsync(formData);
+      showSuccess('Item created successfully!');
+    } catch (error) {
+      showError('Failed to create item. Please try again.');
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      {/* Form fields */}
+    </form>
+  );
+};
+
+// Using snackbar with actions
+export const DeleteItemButton: React.FC<{ itemId: string }> = ({ itemId }) => {
+  const { showSuccess, showError, showWarning } = useSnackbar();
+  const deleteItemMutation = useDeleteItem();
+
+  const handleDelete = () => {
+    showWarning('Are you sure you want to delete this item?', {
+      action: {
+        label: 'Delete',
+        onClick: async () => {
+          try {
+            await deleteItemMutation.mutateAsync(itemId);
+            showSuccess('Item deleted successfully!');
+          } catch (error) {
+            showError('Failed to delete item. Please try again.');
+          }
+        },
+      },
+    });
+  };
+
+  return (
+    <Button onClick={handleDelete} color="error">
+      Delete
+    </Button>
+  );
+};
+```
+
+## Best Practices
+
+### 1. React Query
+- **Use query key factories** for consistent cache management
+- **Implement optimistic updates** for better UX
+- **Handle loading and error states** in all components
+- **Use proper error boundaries** for query errors
+- **Invalidate related queries** after mutations
+- **Use background refetching** for real-time data
+- **Implement proper rollback** on mutation errors
+- **Use enabled option** to prevent unnecessary queries
+- **Configure appropriate stale times** based on data freshness needs
+- **Use query invalidation** strategically for cache consistency
+- **Handle pending states** in UI components
+- **Use suspense boundaries** for loading states
+- **Implement proper retry logic** for failed requests
+- **Use query prefetching** for better perceived performance
+
+### 2. Custom Hooks
+- **Separate query and mutation hooks** for better organization
+- **Use ActionResult pattern** for consistent error handling
+- **Implement proper error boundaries** for hook errors
+- **Use query key factories** for cache management
+- **Compose hooks** for complex functionality
+- **Handle loading and error states** in all hooks
+- **Use debouncing** for search and input operations
+- **Implement optimistic updates** for better UX
+- **Use proper TypeScript generics** for type safety
+- **Handle cleanup** in useEffect hooks
+- **Use useCallback** for stable function references
+- **Implement proper error recovery** mechanisms
+- **Use custom hooks** to encapsulate complex logic
+- **Follow single responsibility principle** for hooks
+
+### 3. Snackbar System
+- **Use message queue** for sequential display
+- **Handle hover states** to pause auto-hide
+- **Provide action buttons** for important messages
+- **Use appropriate severity levels** (success, error, warning, info)
+- **Implement proper cleanup** for timeouts
+- **Use responsive positioning** (bottom-center on mobile, top-right on desktop)
+- **Provide clear, actionable messages**
+- **Handle multiple messages** with queue system
+- **Use consistent styling** across all notifications
+- **Implement proper accessibility** with ARIA labels
+- **Handle edge cases** (rapid message sending, component unmounting)
+- **Use TypeScript** for type safety
+- **Test with different message lengths** and content types
+
+## Related Rule Files
+- `core-rules.mdc` - Project overview and basic architecture
+- `data-rules.mdc` - Storage, validation, and server actions
+- `ui-rules.mdc` - MUI patterns and component guidelines# Custom Hooks & State Management Rules
+
+## React Query (TanStack Query v5) Patterns
+
+### 1. QueryClient Configuration
+```typescript
+// src/components/providers/QueryProvider.tsx
+'use client';
+
+import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+// Create a client with optimized defaults
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Cache data for 5 minutes by default
+      staleTime: 5 * 60 * 1000,
+      // Keep unused data in cache for 10 minutes
+      gcTime: 10 * 60 * 1000,
+      // Retry failed requests twice
+      retry: 2,
+      // Refetch on window focus for fresh data
+      refetchOnWindowFocus: true,
+      // Don't refetch on mount if data is fresh
+      refetchOnMount: false,
+    },
+    mutations: {
+      // Retry failed mutations once
+      retry: 1,
+    },
+  },
+});
+
+interface QueryProviderProps {
+  children: React.ReactNode;
+}
+
+export function QueryProvider({ children }: QueryProviderProps) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      {children}
+    </QueryClientProvider>
+  );
+}
+```
+
+### 2. Query Key Factories
+```typescript
+// src/hooks/useItems.ts
+export const itemKeys = {
+  all: ['items'] as const,
+  detail: (id: string) => ['items', id] as const,
+  search: (query: string) => ['items', 'search', query] as const,
+  byTag: (tag: string) => ['items', 'tag', tag] as const,
+  byTags: (tags: string[]) => ['items', 'tags', tags] as const,
+};
+
+// src/hooks/useLists.ts
+export const listKeys = {
+  all: ['lists'] as const,
+  detail: (id: string) => ['lists', id] as const,
+  byUser: (userId: string) => ['lists', 'user', userId] as const,
+};
+```
+
+### 3. Query Hooks with Server Actions
+```typescript
+// src/hooks/useItems.ts
+'use client';
+
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Item } from '@/types/shopping-list';
+import { 
+  getAllItemsAction,
+  getItemByIdAction,
+  createItemAction,
+  updateItemAction,
+  deleteItemAction,
+  searchItemsAction,
+} from '@/actions/items';
+
+/**
+ * Hook to fetch all items
+ */
+export function useItems() {
+  return useQuery({
+    queryKey: itemKeys.all,
+    queryFn: async () => {
+      const result = await getAllItemsAction();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch items');
+      }
+      return result.data as Item[];
+    },
+  });
+}
+
+/**
+ * Hook to fetch a single item by ID
+ */
+export function useItem(id: string) {
+  return useQuery({
+    queryKey: itemKeys.detail(id),
+    queryFn: async () => {
+      const result = await getItemByIdAction(id);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch item');
+      }
+      return result.data as Item;
+    },
+    enabled: !!id,
+  });
+}
+
+/**
+ * Hook to search items
+ */
+export function useSearchItems(query: string) {
+  return useQuery({
+    queryKey: itemKeys.search(query),
+    queryFn: async () => {
+      const result = await searchItemsAction(query);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to search items');
+      }
+      return result.data as Item[];
+    },
+    enabled: query.length > 0,
+  });
+}
+```
+
+### 4. Optimistic Updates with Mutations
+```typescript
+// src/hooks/useListMutations.ts
+'use client';
+
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { ShoppingList, ShoppingListItem } from '@/types/shopping-list';
+import { 
+  addItemToListAction,
+  removeItemFromListAction,
+  toggleItemCollectedAction,
+  updateListItemAction,
+} from '@/actions/lists';
+import { listKeys } from './useLists';
+
+/**
+ * Hook to toggle item collected status - MOST FREQUENTLY USED
+ */
+export function useToggleItemCollected() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ listId, itemId }: { listId: string; itemId: string }) => {
+      const result = await toggleItemCollectedAction(listId, itemId);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to toggle item');
+      }
+      return result.data as ShoppingList;
+    },
+    onMutate: async ({ listId, itemId }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: listKeys.detail(listId) });
+
+      // Snapshot the previous value
+      const previousList = queryClient.getQueryData<ShoppingList>(listKeys.detail(listId));
+
+      // Optimistically toggle the item
+      if (previousList) {
+        queryClient.setQueryData<ShoppingList>(listKeys.detail(listId), {
+          ...previousList,
+          items: previousList.items.map(item => 
+            item.itemId === itemId 
+              ? { ...item, collected: !item.collected }
+              : item
+          ),
+          updatedAt: new Date().toISOString(),
+        });
+      }
+
+      return { previousList };
+    },
+    onError: (err, { listId }, context) => {
+      // Rollback on error
+      if (context?.previousList) {
+        queryClient.setQueryData(listKeys.detail(listId), context.previousList);
+      }
+    },
+    onSettled: (data, error, { listId }) => {
+      // Refetch in background to ensure consistency
+      queryClient.invalidateQueries({ queryKey: listKeys.detail(listId) });
+      queryClient.invalidateQueries({ queryKey: listKeys.all });
+    },
+  });
+}
+
+/**
+ * Hook to add an item to a list
+ */
+export function useAddItemToList() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ 
+      listId, 
+      itemId, 
+      quantity = 1 
+    }: { 
+      listId: string; 
+      itemId: string; 
+      quantity?: number; 
+    }) => {
+      const formData = new FormData();
+      formData.append('itemId', itemId);
+      formData.append('quantity', quantity.toString());
+      formData.append('collected', 'false');
+      
+      const result = await addItemToListAction(listId, formData);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to add item to list');
+      }
+      return result.data as ShoppingList;
+    },
+    onMutate: async ({ listId, itemId, quantity = 1 }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: listKeys.detail(listId) });
+
+      // Snapshot the previous value
+      const previousList = queryClient.getQueryData<ShoppingList>(listKeys.detail(listId));
+
+      // Optimistically add the item
+      if (previousList) {
+        const newItem: ShoppingListItem = {
+          itemId,
+          quantity,
+          collected: false,
+        };
+        
+        queryClient.setQueryData<ShoppingList>(listKeys.detail(listId), {
+          ...previousList,
+          items: [...previousList.items, newItem],
+          updatedAt: new Date().toISOString(),
+        });
+      }
+
+      return { previousList };
+    },
+    onError: (err, { listId }, context) => {
+      // Rollback on error
+      if (context?.previousList) {
+        queryClient.setQueryData(listKeys.detail(listId), context.previousList);
+      }
+    },
+    onSettled: (data, error, { listId }) => {
+      // Refetch in background to ensure consistency
+      queryClient.invalidateQueries({ queryKey: listKeys.detail(listId) });
+      queryClient.invalidateQueries({ queryKey: listKeys.all });
+    },
+  });
+}
+```
+
+### 5. List Query Hooks
+```typescript
+// src/hooks/useLists.ts
+'use client';
+
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ShoppingList } from '@/types/shopping-list';
+import { 
+  getAllListsAction, 
+  getListByIdAction,
+  createListAction,
+  deleteListAction,
+  updateListNameAction,
+  duplicateListAction,
+  clearCompletedItemsAction
+} from '@/actions/lists';
+import { useRouter } from 'next/navigation';
+
+export const listKeys = {
+  all: ['lists'] as const,
+  detail: (id: string) => ['lists', id] as const,
+};
+
+/**
+ * Hook to fetch all shopping lists
+ */
+export function useLists() {
+  return useQuery({
+    queryKey: listKeys.all,
+    queryFn: async () => {
+      const result = await getAllListsAction();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch lists');
+      }
+      return result.data as ShoppingList[];
+    },
+  });
+}
+
+/**
+ * Hook to fetch a single shopping list by ID
+ */
+export function useList(id: string) {
+  return useQuery({
+    queryKey: listKeys.detail(id),
+    queryFn: async () => {
+      const result = await getListByIdAction(id);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch list');
+      }
+      return result.data as ShoppingList;
+    },
+    enabled: !!id,
+  });
+}
+
+/**
+ * Hook to create a new list
+ */
+export function useCreateList() {
+  const queryClient = useQueryClient();
+  const router = useRouter();
+
+  return useMutation({
+    mutationFn: async (formData: FormData) => {
+      const result = await createListAction(formData);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create list');
+      }
+      return result.data as ShoppingList;
+    },
+    onSuccess: (newList) => {
+      // Invalidate and refetch lists
+      queryClient.invalidateQueries({ queryKey: listKeys.all });
+      
+      // Navigate to the new list
+      router.push(`/lists/${newList.id}`);
+    },
+  });
+}
+```
+
+### 6. Cache Management Patterns
+```typescript
+// Manual cache updates for better UX
+export function useUpdateListName() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ listId, name }: { listId: string; name: string }) => {
+      const formData = new FormData();
+      formData.append('name', name);
+      
+      const result = await updateListNameAction(listId, formData);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update list name');
+      }
+      return result.data as ShoppingList;
+    },
+    onMutate: async ({ listId, name }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: listKeys.detail(listId) });
+
+      // Snapshot the previous value
+      const previousList = queryClient.getQueryData<ShoppingList>(listKeys.detail(listId));
+
+      // Optimistically update the list name
+      if (previousList) {
+        queryClient.setQueryData<ShoppingList>(listKeys.detail(listId), {
+          ...previousList,
+          name,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+
+      return { previousList };
+    },
+    onError: (err, { listId }, context) => {
+      // Rollback on error
+      if (context?.previousList) {
+        queryClient.setQueryData(listKeys.detail(listId), context.previousList);
+      }
+    },
+    onSettled: (data, error, { listId }) => {
+      // Refetch to ensure consistency
+      queryClient.invalidateQueries({ queryKey: listKeys.detail(listId) });
+      queryClient.invalidateQueries({ queryKey: listKeys.all });
+    },
+  });
+}
+```
+
+### 7. Error Handling and Loading States
+```typescript
+// Component usage with proper error handling
+export const ShoppingListComponent: React.FC<{ listId: string }> = ({ listId }) => {
+  const { data: list, isLoading, error } = useList(listId);
+  const toggleItemMutation = useToggleItemCollected();
+
+  if (isLoading) {
+    return <ShoppingListSkeleton />;
+  }
+
+  if (error) {
+    return (
+      <Alert severity="error">
+        Failed to load list: {error.message}
+      </Alert>
+    );
+  }
+
+  if (!list) {
+    return <EmptyState />;
+  }
+
+  const handleToggleItem = (itemId: string) => {
+    toggleItemMutation.mutate({ listId, itemId });
+  };
+
+  return (
+    <div>
+      {list.items.map(item => (
+        <ListItem
+          key={item.itemId}
+          item={item}
+          onToggle={() => handleToggleItem(item.itemId)}
+          disabled={toggleItemMutation.isPending}
+        />
+      ))}
+    </div>
+  );
+};
+```
+
+### 8. Background Refetching and Stale Data
+```typescript
+// Configure background refetching for real-time updates
+export function useListsWithBackgroundSync() {
+  return useQuery({
+    queryKey: listKeys.all,
+    queryFn: async () => {
+      const result = await getAllListsAction();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch lists');
+      }
+      return result.data as ShoppingList[];
+    },
+    // Refetch every 30 seconds for real-time updates
+    refetchInterval: 30 * 1000,
+    // Refetch when window regains focus
+    refetchOnWindowFocus: true,
+    // Keep data fresh for 1 minute
+    staleTime: 60 * 1000,
+  });
+}
+```
+
+## Custom Hooks Architecture
+
+### 1. ActionResult Pattern
+```typescript
+// src/actions/lists.ts
+export interface ActionResult<T = any> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  details?: any;
+  warning?: string;
+}
+
+export async function createListAction(formData: FormData): Promise<ActionResult> {
+  try {
+    // Validation
+    const rawData = {
+      name: formData.get('name'),
+    };
+    
+    const validatedData = validateCreateList(rawData);
+
+    // Get repository and create list
+    const repository = await getListRepository();
+    const list = await repository.create(validatedData);
+
+    return { success: true, data: list };
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      return { success: false, error: error.message };
+    }
+    if (error instanceof StorageError) {
+      return { success: false, error: 'Failed to create list' };
+    }
+    
+    console.error('Unexpected error:', error);
+    return { success: false, error: 'An unexpected error occurred' };
+  }
+}
+```
+
+### 2. Separation of Query and Mutation Hooks
+```typescript
+// src/hooks/useItems.ts - Query hooks (read operations)
+'use client';
+
+import { useQuery } from '@tanstack/react-query';
+import { Item } from '@/types/shopping-list';
+import { 
+  getAllItemsAction,
+  getItemByIdAction,
+  searchItemsAction,
+} from '@/actions/items';
+
+export const itemKeys = {
+  all: ['items'] as const,
+  detail: (id: string) => ['items', id] as const,
+  search: (query: string) => ['items', 'search', query] as const,
+};
+
+export function useItems() {
+  return useQuery({
+    queryKey: itemKeys.all,
+    queryFn: async () => {
+      const result = await getAllItemsAction();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch items');
+      }
+      return result.data as Item[];
+    },
+  });
+}
+
+export function useItem(id: string) {
+  return useQuery({
+    queryKey: itemKeys.detail(id),
+    queryFn: async () => {
+      const result = await getItemByIdAction(id);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch item');
+      }
+      return result.data as Item;
+    },
+    enabled: !!id,
+  });
+}
+
+export function useSearchItems(query: string) {
+  return useQuery({
+    queryKey: itemKeys.search(query),
+    queryFn: async () => {
+      const result = await searchItemsAction(query);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to search items');
+      }
+      return result.data as Item[];
+    },
+    enabled: query.length > 0,
+  });
+}
+```
+
+```typescript
+// src/hooks/useItemMutations.ts - Mutation hooks (write operations)
+'use client';
+
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Item } from '@/types/shopping-list';
+import { 
+  createItemAction,
+  updateItemAction,
+  deleteItemAction,
+} from '@/actions/items';
+import { itemKeys } from './useItems';
+
+export function useCreateItem() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (formData: FormData) => {
+      const result = await createItemAction(formData);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create item');
+      }
+      return result.data as Item;
+    },
+    onSuccess: () => {
+      // Invalidate and refetch items
+      queryClient.invalidateQueries({ queryKey: itemKeys.all });
+    },
+  });
+}
+
+export function useUpdateItem() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, formData }: { id: string; formData: FormData }) => {
+      const result = await updateItemAction(id, formData);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update item');
+      }
+      return result.data as Item;
+    },
+    onSuccess: (updatedItem) => {
+      // Update the specific item in cache
+      queryClient.setQueryData(itemKeys.detail(updatedItem.id), updatedItem);
+      // Invalidate the list to ensure consistency
+      queryClient.invalidateQueries({ queryKey: itemKeys.all });
+    },
+  });
+}
+
+export function useDeleteItem() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const result = await deleteItemAction(id);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to delete item');
+      }
+    },
+    onSuccess: (_, deletedId) => {
+      // Remove the item from cache
+      queryClient.removeQueries({ queryKey: itemKeys.detail(deletedId) });
+      // Invalidate the list
+      queryClient.invalidateQueries({ queryKey: itemKeys.all });
+    },
+  });
+}
+```
+
+### 3. Debounce Hook for Search
+```typescript
+// src/hooks/useDebounce.ts
+'use client';
+
+import { useState, useEffect } from 'react';
+
+export function useDebounce<T>(value: T, delay: number = 300): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
+// Usage in search component
+export const SearchComponent: React.FC = () => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedQuery = useDebounce(searchQuery, 300);
+  const { data: searchResults, isLoading } = useSearchItems(debouncedQuery);
+
+  return (
+    <TextField
+      value={searchQuery}
+      onChange={(e) => setSearchQuery(e.target.value)}
+      placeholder="Search items..."
+    />
+  );
+};
+```
+
+### 4. Hook Composition Pattern
+```typescript
+// src/hooks/useShoppingList.ts - Composed hook for list management
+'use client';
+
+import { useList } from './useLists';
+import { useToggleItemCollected, useAddItemToList, useRemoveItemFromList } from './useListMutations';
+import { useItems } from './useItems';
+
+export function useShoppingList(listId: string) {
+  const { data: list, isLoading, error } = useList(listId);
+  const { data: allItems } = useItems();
+  
+  const toggleItemMutation = useToggleItemCollected();
+  const addItemMutation = useAddItemToList();
+  const removeItemMutation = useRemoveItemFromList();
+
+  const toggleItem = (itemId: string) => {
+    toggleItemMutation.mutate({ listId, itemId });
+  };
+
+  const addItem = (itemId: string, quantity: number = 1) => {
+    addItemMutation.mutate({ listId, itemId, quantity });
+  };
+
+  const removeItem = (itemId: string) => {
+    removeItemMutation.mutate({ listId, itemId });
+  };
+
+  return {
+    // Data
+    list,
+    allItems,
+    
+    // Loading states
+    isLoading,
+    isToggling: toggleItemMutation.isPending,
+    isAdding: addItemMutation.isPending,
+    isRemoving: removeItemMutation.isPending,
+    
+    // Error states
+    error,
+    toggleError: toggleItemMutation.error,
+    addError: addItemMutation.error,
+    removeError: removeItemMutation.error,
+    
+    // Actions
+    toggleItem,
+    addItem,
+    removeItem,
+  };
+}
+```
+
+### 5. Custom Hook for Form State
+```typescript
+// src/hooks/useFormState.ts
+'use client';
+
+import { useState, useCallback } from 'react';
+
+export function useFormState<T extends Record<string, any>>(initialState: T) {
+  const [formData, setFormData] = useState<T>(initialState);
+  const [errors, setErrors] = useState<Partial<Record<keyof T, string>>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const updateField = useCallback((field: keyof T, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: undefined }));
+    }
+  }, [errors]);
+
+  const setFieldError = useCallback((field: keyof T, error: string) => {
+    setErrors(prev => ({ ...prev, [field]: error }));
+  }, []);
+
+  const clearErrors = useCallback(() => {
+    setErrors({});
+  }, []);
+
+  const reset = useCallback(() => {
+    setFormData(initialState);
+    setErrors({});
+    setIsSubmitting(false);
+  }, [initialState]);
+
+  return {
+    formData,
+    errors,
+    isSubmitting,
+    setIsSubmitting,
+    updateField,
+    setFieldError,
+    clearErrors,
+    reset,
+  };
+}
+```
+
+## Snackbar Notification System
+
+### 1. Context and Types
+```typescript
+// src/types/snackbar.ts
+export type SnackbarSeverity = 'success' | 'error' | 'warning' | 'info';
+
+export interface SnackbarMessage {
+  id: string;
+  message: string;
+  severity: SnackbarSeverity;
+  duration?: number;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
+}
+
+export interface SnackbarContextType {
+  showMessage: (message: string, severity: SnackbarSeverity, options?: Partial<Omit<SnackbarMessage, 'id' | 'message' | 'severity'>>) => void;
+  showSuccess: (message: string, options?: Partial<Omit<SnackbarMessage, 'id' | 'message' | 'severity'>>) => void;
+  showError: (message: string, options?: Partial<Omit<SnackbarMessage, 'id' | 'message' | 'severity'>>) => void;
+  showWarning: (message: string, options?: Partial<Omit<SnackbarMessage, 'id' | 'message' | 'severity'>>) => void;
+  showInfo: (message: string, options?: Partial<Omit<SnackbarMessage, 'id' | 'message' | 'severity'>>) => void;
+  closeSnackbar: (id: string) => void;
+}
+```
+
+### 2. Snackbar Provider Implementation
+```typescript
+// src/components/providers/SnackbarProvider.tsx
+'use client';
+
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import { Snackbar, Alert, IconButton } from '@mui/material';
+import { SnackbarMessage, SnackbarContextType } from '@/types/snackbar';
+
+const SnackbarContext = createContext<SnackbarContextType | undefined>(undefined);
+
+interface SnackbarProviderProps {
+  children: React.ReactNode;
+}
+
+export const SnackbarProvider: React.FC<SnackbarProviderProps> = ({ children }) => {
+  const [messages, setMessages] = useState<SnackbarMessage[]>([]);
+  const [currentMessage, setCurrentMessage] = useState<SnackbarMessage | null>(null);
+  const [isHovered, setIsHovered] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const showMessage = useCallback((
+    message: string, 
+    severity: SnackbarSeverity, 
+    options?: Partial<Omit<SnackbarMessage, 'id' | 'message' | 'severity'>>
+  ) => {
+    const id = Math.random().toString(36).substr(2, 9);
+    const newMessage: SnackbarMessage = {
+      id,
+      message,
+      severity,
+      duration: 5000, // Default 5 seconds
+      ...options,
+    };
+
+    setMessages(prev => [...prev, newMessage]);
+  }, []);
+
+  const showSuccess = useCallback((message: string, options?: Partial<Omit<SnackbarMessage, 'id' | 'message' | 'severity'>>) => {
+    showMessage(message, 'success', options);
+  }, [showMessage]);
+
+  const showError = useCallback((message: string, options?: Partial<Omit<SnackbarMessage, 'id' | 'message' | 'severity'>>) => {
+    showMessage(message, 'error', options);
+  }, [showMessage]);
+
+  const showWarning = useCallback((message: string, options?: Partial<Omit<SnackbarMessage, 'id' | 'message' | 'severity'>>) => {
+    showMessage(message, 'warning', options);
+  }, [showMessage]);
+
+  const showInfo = useCallback((message: string, options?: Partial<Omit<SnackbarMessage, 'id' | 'message' | 'severity'>>) => {
+    showMessage(message, 'info', options);
+  }, [showMessage]);
+
+  const closeSnackbar = useCallback((id: string) => {
+    setMessages(prev => prev.filter(msg => msg.id !== id));
+    if (currentMessage?.id === id) {
+      setCurrentMessage(null);
+    }
+  }, [currentMessage]);
+
+  const handleClose = useCallback((event?: React.SyntheticEvent | Event, reason?: string) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    if (currentMessage) {
+      closeSnackbar(currentMessage.id);
+    }
+  }, [currentMessage, closeSnackbar]);
+
+  const handleMouseEnter = useCallback(() => {
+    setIsHovered(true);
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setIsHovered(false);
+    if (currentMessage && !isHovered) {
+      startAutoHide();
+    }
+  }, [currentMessage, isHovered]);
+
+  const startAutoHide = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    if (currentMessage && currentMessage.duration && !isHovered) {
+      timeoutRef.current = setTimeout(() => {
+        handleClose();
+      }, currentMessage.duration);
+    }
+  }, [currentMessage, isHovered, handleClose]);
+
+  // Process message queue
+  useEffect(() => {
+    if (messages.length > 0 && !currentMessage) {
+      const nextMessage = messages[0];
+      setCurrentMessage(nextMessage);
+      setMessages(prev => prev.slice(1));
+    }
+  }, [messages, currentMessage]);
+
+  // Start auto-hide when message changes
+  useEffect(() => {
+    if (currentMessage) {
+      startAutoHide();
+    }
+    
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [currentMessage, startAutoHide]);
+
+  const contextValue: SnackbarContextType = {
+    showMessage,
+    showSuccess,
+    showError,
+    showWarning,
+    showInfo,
+    closeSnackbar,
+  };
+
+  return (
+    <SnackbarContext.Provider value={contextValue}>
+      {children}
+      
+      {currentMessage && (
+        <Snackbar
+          open={!!currentMessage}
+          onClose={handleClose}
+          autoHideDuration={null} // We handle this manually
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          sx={{
+            '& .MuiSnackbarContent-root': {
+              padding: 0,
+            },
+          }}
+        >
+          <Alert
+            severity={currentMessage.severity}
+            onClose={() => handleClose()}
+            action={
+              currentMessage.action ? (
+                <IconButton
+                  size="small"
+                  onClick={currentMessage.action.onClick}
+                  color="inherit"
+                >
+                  {currentMessage.action.label}
+                </IconButton>
+              ) : undefined
+            }
+            sx={{
+              minWidth: 300,
+              maxWidth: 500,
+              '& .MuiAlert-message': {
+                flex: 1,
+              },
+            }}
+          >
+            {currentMessage.message}
+          </Alert>
+        </Snackbar>
+      )}
+    </SnackbarContext.Provider>
+  );
+};
+
+export const useSnackbar = (): SnackbarContextType => {
+  const context = useContext(SnackbarContext);
+  if (context === undefined) {
+    throw new Error('useSnackbar must be used within a SnackbarProvider');
+  }
+  return context;
+};
+```
+
+### 3. Usage in Components
+```typescript
+// Using snackbar in components
+export const ItemForm: React.FC = () => {
+  const { showSuccess, showError } = useSnackbar();
+  const createItemMutation = useCreateItem();
+
+  const handleSubmit = async (formData: FormData) => {
+    try {
+      await createItemMutation.mutateAsync(formData);
+      showSuccess('Item created successfully!');
+    } catch (error) {
+      showError('Failed to create item. Please try again.');
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      {/* Form fields */}
+    </form>
+  );
+};
+
+// Using snackbar with actions
+export const DeleteItemButton: React.FC<{ itemId: string }> = ({ itemId }) => {
+  const { showSuccess, showError, showWarning } = useSnackbar();
+  const deleteItemMutation = useDeleteItem();
+
+  const handleDelete = () => {
+    showWarning('Are you sure you want to delete this item?', {
+      action: {
+        label: 'Delete',
+        onClick: async () => {
+          try {
+            await deleteItemMutation.mutateAsync(itemId);
+            showSuccess('Item deleted successfully!');
+          } catch (error) {
+            showError('Failed to delete item. Please try again.');
+          }
+        },
+      },
+    });
+  };
+
+  return (
+    <Button onClick={handleDelete} color="error">
+      Delete
+    </Button>
+  );
+};
+```
+
+## Best Practices
+
+### 1. React Query
+- **Use query key factories** for consistent cache management
+- **Implement optimistic updates** for better UX
+- **Handle loading and error states** in all components
+- **Use proper error boundaries** for query errors
+- **Invalidate related queries** after mutations
+- **Use background refetching** for real-time data
+- **Implement proper rollback** on mutation errors
+- **Use enabled option** to prevent unnecessary queries
+- **Configure appropriate stale times** based on data freshness needs
+- **Use query invalidation** strategically for cache consistency
+- **Handle pending states** in UI components
+- **Use suspense boundaries** for loading states
+- **Implement proper retry logic** for failed requests
+- **Use query prefetching** for better perceived performance
+
+### 2. Custom Hooks
+- **Separate query and mutation hooks** for better organization
+- **Use ActionResult pattern** for consistent error handling
+- **Implement proper error boundaries** for hook errors
+- **Use query key factories** for cache management
+- **Compose hooks** for complex functionality
+- **Handle loading and error states** in all hooks
+- **Use debouncing** for search and input operations
+- **Implement optimistic updates** for better UX
+- **Use proper TypeScript generics** for type safety
+- **Handle cleanup** in useEffect hooks
+- **Use useCallback** for stable function references
+- **Implement proper error recovery** mechanisms
+- **Use custom hooks** to encapsulate complex logic
+- **Follow single responsibility principle** for hooks
+
+### 3. Snackbar System
+- **Use message queue** for sequential display
+- **Handle hover states** to pause auto-hide
+- **Provide action buttons** for important messages
+- **Use appropriate severity levels** (success, error, warning, info)
+- **Implement proper cleanup** for timeouts
+- **Use responsive positioning** (bottom-center on mobile, top-right on desktop)
+- **Provide clear, actionable messages**
+- **Handle multiple messages** with queue system
+- **Use consistent styling** across all notifications
+- **Implement proper accessibility** with ARIA labels
+- **Handle edge cases** (rapid message sending, component unmounting)
+- **Use TypeScript** for type safety
+- **Test with different message lengths** and content types
+
+## Related Rule Files
+- `core-rules.mdc` - Project overview and basic architecture
+- `data-rules.mdc` - Storage, validation, and server actions
+- `ui-rules.mdc` - MUI patterns and component guidelines

@@ -1,0 +1,748 @@
+# Theme System Rules
+
+## Advanced Theme System with RTL Support
+
+### 1. Theme Types and Configuration
+```typescript
+// src/types/theme.ts
+export type ThemeMode = 
+  | 'light' 
+  | 'dark' 
+  | 'purple-night' 
+  | 'ocean-blue' 
+  | 'sunset-orange' 
+  | 'forest-green' 
+  | 'high-contrast' 
+  | 'cyberpunk' 
+  | 'retro';
+
+export interface ThemeInfo {
+  id: ThemeMode;
+  name: string;
+  description: string;
+  category: 'standard' | 'nature' | 'specialty';
+}
+
+export const THEME_MODES: ThemeMode[] = [
+  'light',
+  'dark',
+  'purple-night',
+  'ocean-blue',
+  'sunset-orange',
+  'forest-green',
+  'high-contrast',
+  'cyberpunk',
+  'retro'
+] as const;
+
+export const THEME_INFO: Record<ThemeMode, ThemeInfo> = {
+  'light': {
+    id: 'light',
+    name: 'Light',
+    description: 'Clean and bright default theme',
+    category: 'standard'
+  },
+  'dark': {
+    id: 'dark',
+    name: 'Dark',
+    description: 'Easy on the eyes dark theme',
+    category: 'standard'
+  },
+  'purple-night': {
+    id: 'purple-night',
+    name: 'Purple Night',
+    description: 'Deep purple and violet tones',
+    category: 'standard'
+  },
+  'ocean-blue': {
+    id: 'ocean-blue',
+    name: 'Ocean Blue',
+    description: 'Calming blue and teal ocean colors',
+    category: 'nature'
+  },
+  'sunset-orange': {
+    id: 'sunset-orange',
+    name: 'Sunset Orange',
+    description: 'Warm orange and coral sunset hues',
+    category: 'nature'
+  },
+  'forest-green': {
+    id: 'forest-green',
+    name: 'Forest Green',
+    description: 'Natural green and earth tones',
+    category: 'nature'
+  },
+  'high-contrast': {
+    id: 'high-contrast',
+    name: 'High Contrast',
+    description: 'Maximum contrast for accessibility',
+    category: 'specialty'
+  },
+  'cyberpunk': {
+    id: 'cyberpunk',
+    name: 'Cyberpunk',
+    description: 'Neon pink and cyan futuristic vibes',
+    category: 'specialty'
+  },
+  'retro': {
+    id: 'retro',
+    name: 'Retro',
+    description: 'Vintage 80s warm pastel colors',
+    category: 'specialty'
+  }
+};
+```
+
+### 2. Theme Definitions with RTL Support
+```typescript
+// src/lib/theme/themes.ts
+import { createTheme } from '@mui/material/styles';
+import { ThemeMode } from '@/types/theme';
+
+const baseTheme = {
+  typography: {
+    fontFamily: [
+      'var(--font-geist-sans)',
+      '-apple-system',
+      'BlinkMacSystemFont',
+      '"Segoe UI"',
+      'Roboto',
+      '"Helvetica Neue"',
+      'Arial',
+      'sans-serif',
+    ].join(','),
+  },
+  components: {
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          borderRadius: 12,
+        },
+      },
+    },
+  },
+};
+
+export const themes: Record<ThemeMode, ReturnType<typeof createTheme>> = {
+  light: createTheme({
+    ...baseTheme,
+    palette: {
+      mode: 'light',
+      primary: {
+        main: '#1976d2',
+        light: '#42a5f5',
+        dark: '#1565c0',
+      },
+      secondary: {
+        main: '#dc004e',
+        light: '#ff5983',
+        dark: '#9a0036',
+      },
+      background: {
+        default: '#ffffff',
+        paper: '#fafafa',
+      },
+      text: {
+        primary: '#212121',
+        secondary: '#757575',
+      },
+    },
+  }),
+
+  dark: createTheme({
+    ...baseTheme,
+    palette: {
+      mode: 'dark',
+      primary: {
+        main: '#90caf9',
+        light: '#e3f2fd',
+        dark: '#42a5f5',
+      },
+      secondary: {
+        main: '#f48fb1',
+        light: '#fce4ec',
+        dark: '#ad1457',
+      },
+      background: {
+        default: '#121212',
+        paper: '#1e1e1e',
+      },
+      text: {
+        primary: '#ffffff',
+        secondary: '#b3b3b3',
+      },
+    },
+  }),
+
+  'purple-night': createTheme({
+    ...baseTheme,
+    palette: {
+      mode: 'dark',
+      primary: {
+        main: '#9c27b0',
+        light: '#ba68c8',
+        dark: '#7b1fa2',
+      },
+      secondary: {
+        main: '#e1bee7',
+        light: '#f3e5f5',
+        dark: '#ce93d8',
+      },
+      background: {
+        default: '#1a0d1f',
+        paper: '#2d1b30',
+      },
+      text: {
+        primary: '#f3e5f5',
+        secondary: '#ce93d8',
+      },
+    },
+  }),
+
+  'ocean-blue': createTheme({
+    ...baseTheme,
+    palette: {
+      mode: 'light',
+      primary: {
+        main: '#0277bd',
+        light: '#58a5f0',
+        dark: '#01579b',
+      },
+      secondary: {
+        main: '#00acc1',
+        light: '#4dd0e1',
+        dark: '#00838f',
+      },
+      background: {
+        default: '#e3f2fd',
+        paper: '#bbdefb',
+      },
+      text: {
+        primary: '#01579b',
+        secondary: '#0277bd',
+      },
+    },
+  }),
+
+  'sunset-orange': createTheme({
+    ...baseTheme,
+    palette: {
+      mode: 'light',
+      primary: {
+        main: '#ff5722',
+        light: '#ff8a65',
+        dark: '#d84315',
+      },
+      secondary: {
+        main: '#ff9800',
+        light: '#ffb74d',
+        dark: '#f57c00',
+      },
+      background: {
+        default: '#fff3e0',
+        paper: '#ffe0b2',
+      },
+      text: {
+        primary: '#d84315',
+        secondary: '#ff5722',
+      },
+    },
+  }),
+
+  'forest-green': createTheme({
+    ...baseTheme,
+    palette: {
+      mode: 'light',
+      primary: {
+        main: '#388e3c',
+        light: '#66bb6a',
+        dark: '#2e7d32',
+      },
+      secondary: {
+        main: '#689f38',
+        light: '#8bc34a',
+        dark: '#558b2f',
+      },
+      background: {
+        default: '#e8f5e8',
+        paper: '#c8e6c9',
+      },
+      text: {
+        primary: '#2e7d32',
+        secondary: '#388e3c',
+      },
+    },
+  }),
+
+  'high-contrast': createTheme({
+    ...baseTheme,
+    palette: {
+      mode: 'light',
+      primary: {
+        main: '#000000',
+        light: '#424242',
+        dark: '#000000',
+      },
+      secondary: {
+        main: '#ffffff',
+        light: '#ffffff',
+        dark: '#f5f5f5',
+      },
+      background: {
+        default: '#ffffff',
+        paper: '#ffffff',
+      },
+      text: {
+        primary: '#000000',
+        secondary: '#000000',
+      },
+    },
+    components: {
+      ...baseTheme.components,
+      MuiCard: {
+        styleOverrides: {
+          root: {
+            borderRadius: 12,
+            border: '2px solid #000000',
+          },
+        },
+      },
+    },
+  }),
+
+  cyberpunk: createTheme({
+    ...baseTheme,
+    palette: {
+      mode: 'dark',
+      primary: {
+        main: '#ff0080',
+        light: '#ff4da6',
+        dark: '#cc0066',
+      },
+      secondary: {
+        main: '#00ffff',
+        light: '#4ddbff',
+        dark: '#00cccc',
+      },
+      background: {
+        default: '#0a0a0a',
+        paper: '#1a1a1a',
+      },
+      text: {
+        primary: '#00ffff',
+        secondary: '#ff0080',
+      },
+    },
+    components: {
+      ...baseTheme.components,
+      MuiCard: {
+        styleOverrides: {
+          root: {
+            borderRadius: 12,
+            border: '1px solid #ff0080',
+            boxShadow: '0 0 10px rgba(255, 0, 128, 0.3)',
+          },
+        },
+      },
+    },
+  }),
+
+  retro: createTheme({
+    ...baseTheme,
+    palette: {
+      mode: 'light',
+      primary: {
+        main: '#ff6b9d',
+        light: '#ffa8c8',
+        dark: '#e91e63',
+      },
+      secondary: {
+        main: '#4fc3f7',
+        light: '#81d4fa',
+        dark: '#0288d1',
+      },
+      background: {
+        default: '#fce4ec',
+        paper: '#f8bbd9',
+      },
+      text: {
+        primary: '#ad1457',
+        secondary: '#e91e63',
+      },
+    },
+  }),
+};
+
+export const getTheme = (mode: ThemeMode, isRTL: boolean = false) => {
+  const theme = themes[mode];
+  
+  if (isRTL) {
+    return createTheme({
+      ...theme,
+      direction: 'rtl',
+    });
+  }
+  
+  return theme;
+};
+```
+
+### 3. Theme Provider with Persistence
+```typescript
+// src/components/providers/ThemeProvider.tsx
+'use client';
+
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { ThemeMode, THEME_MODES, STORAGE_KEY } from '@/types/theme';
+
+interface ThemeContextType {
+  theme: ThemeMode;
+  setTheme: (theme: ThemeMode) => void;
+  availableThemes: ThemeMode[];
+}
+
+const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+
+interface ThemeProviderProps {
+  children: ReactNode;
+}
+
+export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
+  const [theme, setThemeState] = useState<ThemeMode>('light');
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Initialize theme from localStorage or system preference
+  useEffect(() => {
+    const initializeTheme = () => {
+      try {
+        // Check localStorage first
+        const storedTheme = localStorage.getItem(STORAGE_KEY) as ThemeMode;
+        
+        if (storedTheme && THEME_MODES.includes(storedTheme)) {
+          setThemeState(storedTheme);
+        } else {
+          // Detect system preference for light/dark only
+          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          const systemTheme: ThemeMode = prefersDark ? 'dark' : 'light';
+          setThemeState(systemTheme);
+          
+          // Store the detected preference
+          localStorage.setItem(STORAGE_KEY, systemTheme);
+        }
+      } catch (error) {
+        console.warn('Failed to initialize theme:', error);
+        // Fallback to light theme
+        setThemeState('light');
+      } finally {
+        setIsInitialized(true);
+      }
+    };
+
+    initializeTheme();
+  }, []);
+
+  const setTheme = (newTheme: ThemeMode) => {
+    try {
+      setThemeState(newTheme);
+      localStorage.setItem(STORAGE_KEY, newTheme);
+      
+      // Future: Sync with database when user authentication is implemented
+      // await syncThemeWithDatabase(newTheme);
+    } catch (error) {
+      console.warn('Failed to save theme preference:', error);
+    }
+  };
+
+  const value = {
+    theme,
+    setTheme,
+    availableThemes: THEME_MODES,
+  };
+
+  // Don't render children until theme is initialized to prevent flash
+  if (!isInitialized) {
+    return null;
+  }
+
+  return (
+    <ThemeContext.Provider value={value}>
+      {children}
+    </ThemeContext.Provider>
+  );
+};
+
+export const useTheme = (): ThemeContextType => {
+  const context = useContext(ThemeContext);
+  if (context === undefined) {
+    throw new Error('useTheme must be used within a ThemeProvider');
+  }
+  return context;
+};
+```
+
+### 4. MUI Theme Provider with RTL Support
+```typescript
+// src/components/providers/MuiThemeProvider.tsx
+'use client';
+
+import React from 'react';
+import { ThemeProvider as MuiThemeProvider, CssBaseline } from '@mui/material';
+import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
+import { useTheme } from './ThemeProvider';
+import { useLocale } from 'next-intl';
+import { getTheme } from '@/lib/theme/themes';
+
+interface MuiThemeProviderProps {
+  children: React.ReactNode;
+}
+
+export const MuiThemeProvider: React.FC<MuiThemeProviderProps> = ({ children }) => {
+  const { theme } = useTheme();
+  const locale = useLocale();
+  const isRTL = locale === 'he';
+  
+  const muiTheme = getTheme(theme, isRTL);
+
+  return (
+    <AppRouterCacheProvider options={{ key: 'css' }}>
+      <MuiThemeProvider theme={muiTheme}>
+        <CssBaseline />
+        {children}
+      </MuiThemeProvider>
+    </AppRouterCacheProvider>
+  );
+};
+```
+
+### 5. Theme Switcher Component
+```typescript
+// src/components/features/ThemeSwitcher.tsx
+export const ThemeSwitcher: React.FC = () => {
+  const { theme, setTheme, availableThemes } = useTheme();
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const open = Boolean(anchorEl);
+
+  const handleClick = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleThemeChange = (newTheme: ThemeMode) => {
+    setTheme(newTheme);
+    handleClose();
+  };
+
+  const currentThemeInfo = THEME_INFO[theme];
+
+  return (
+    <>
+      <IconButton
+        onClick={handleClick}
+        size="small"
+        aria-label="Change theme"
+      >
+        <PaletteIcon />
+      </IconButton>
+      
+      <Menu
+        anchorEl={anchorEl}
+        open={open}
+        onClose={handleClose}
+        PaperProps={{
+          sx: { minWidth: 200 }
+        }}
+      >
+        {Object.entries(THEME_INFO).map(([themeId, themeInfo]) => (
+          <MenuItem
+            key={themeId}
+            onClick={() => handleThemeChange(themeId as ThemeMode)}
+            selected={themeId === theme}
+          >
+            <ListItemIcon>
+              {themeId === theme && <CheckIcon />}
+            </ListItemIcon>
+            <ListItemText
+              primary={themeInfo.name}
+              secondary={themeInfo.description}
+            />
+          </MenuItem>
+        ))}
+      </Menu>
+    </>
+  );
+};
+```
+
+### 6. RTL Support Integration
+```typescript
+// src/components/layout/ClientLayout.tsx
+export const ClientLayout: React.FC<ClientLayoutProps> = ({ children }) => {
+  const locale = useLocale();
+  const isRTL = locale === 'he';
+
+  // Update the HTML lang and dir attributes
+  React.useEffect(() => {
+    document.documentElement.lang = locale;
+    document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
+  }, [locale, isRTL]);
+
+  return <>{children}</>;
+};
+```
+
+### 7. Theme Categories and Organization
+```typescript
+// Group themes by category for better UX
+export const getThemesByCategory = () => {
+  const categories = {
+    standard: [] as ThemeMode[],
+    nature: [] as ThemeMode[],
+    specialty: [] as ThemeMode[],
+  };
+
+  Object.entries(THEME_INFO).forEach(([themeId, themeInfo]) => {
+    categories[themeInfo.category].push(themeId as ThemeMode);
+  });
+
+  return categories;
+};
+
+// Usage in theme switcher
+const { standard, nature, specialty } = getThemesByCategory();
+```
+
+### 8. Custom Theme Creation
+```typescript
+// Creating custom themes
+export const createCustomTheme = (baseTheme: ThemeMode, customizations: Partial<ThemeOptions>) => {
+  const base = themes[baseTheme];
+  
+  return createTheme({
+    ...base,
+    ...customizations,
+    palette: {
+      ...base.palette,
+      ...customizations.palette,
+    },
+    components: {
+      ...base.components,
+      ...customizations.components,
+    },
+  });
+};
+
+// Example: Create a custom dark theme with blue accents
+export const customDarkBlue = createCustomTheme('dark', {
+  palette: {
+    primary: {
+      main: '#2196f3',
+      light: '#64b5f6',
+      dark: '#1976d2',
+    },
+  },
+});
+```
+
+### 9. Theme-Aware Component Styling
+```typescript
+// Using theme in component styling
+export const ThemedComponent: React.FC = () => {
+  const theme = useTheme();
+  
+  return (
+    <Box
+      sx={{
+        backgroundColor: theme.palette.background.paper,
+        color: theme.palette.text.primary,
+        padding: theme.spacing(2),
+        borderRadius: theme.shape.borderRadius,
+        boxShadow: theme.shadows[2],
+        
+        // Responsive styling
+        [theme.breakpoints.up('md')]: {
+          padding: theme.spacing(3),
+        },
+        
+        // Dark mode specific styling
+        ...(theme.palette.mode === 'dark' && {
+          border: `1px solid ${theme.palette.divider}`,
+        }),
+      }}
+    >
+      {/* Component content */}
+    </Box>
+  );
+};
+```
+
+### 10. Theme Testing and Validation
+```typescript
+// Theme validation utilities
+export const validateTheme = (theme: ThemeMode): boolean => {
+  return THEME_MODES.includes(theme);
+};
+
+export const getThemeContrast = (theme: ThemeMode): number => {
+  const themeConfig = themes[theme];
+  const primary = themeConfig.palette.primary.main;
+  const background = themeConfig.palette.background.default;
+  
+  // Calculate contrast ratio (simplified)
+  return calculateContrastRatio(primary, background);
+};
+
+export const isAccessibleTheme = (theme: ThemeMode): boolean => {
+  const contrast = getThemeContrast(theme);
+  return contrast >= 4.5; // WCAG AA standard
+};
+```
+
+## Best Practices
+
+### 1. Theme Design
+- **Use theme categories** to organize themes logically
+- **Provide theme descriptions** for better user experience
+- **Support system preference detection** as fallback
+- **Persist theme selection** in localStorage
+- **Handle RTL automatically** based on locale
+- **Use consistent color palettes** across themes
+- **Test all themes** for proper contrast ratios
+- **Provide theme metadata** (name, description, category)
+- **Use CSS custom properties** for dynamic theming
+- **Implement theme switching** without page reload
+- **Handle theme initialization** to prevent flash
+- **Support accessibility themes** (high-contrast)
+- **Use semantic color names** in theme definitions
+- **Test RTL layouts** with all themes
+
+### 2. Performance
+- **Lazy load themes** to reduce bundle size
+- **Use theme caching** to avoid recreation
+- **Optimize theme switching** for smooth transitions
+- **Minimize theme-specific code** by using MUI's built-in support
+- **Use CSS variables** for dynamic theming when possible
+- **Avoid theme-specific components** when possible
+
+### 3. Accessibility
+- **Ensure proper contrast ratios** for all themes
+- **Test with screen readers** in different themes
+- **Support high contrast mode** for accessibility
+- **Use semantic color names** for better understanding
+- **Test keyboard navigation** in all themes
+- **Provide theme descriptions** for screen readers
+
+### 4. Maintenance
+- **Keep theme definitions centralized** in one file
+- **Use TypeScript** for theme type safety
+- **Document theme decisions** and rationale
+- **Test theme changes** across all components
+- **Version control theme changes** carefully
+- **Provide theme migration guides** for breaking changes
+
+## Related Rule Files
+- `core-rules.mdc` - Project overview and basic architecture
+- `i18n-rules.mdc` - Internationalization and RTL support
+- `ui-rules.mdc` - MUI patterns and component guidelines

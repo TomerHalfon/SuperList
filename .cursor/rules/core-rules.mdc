@@ -1,0 +1,415 @@
+---
+alwaysApply: false
+---
+
+# SuperList - Core Architecture Rules
+
+## Project Overview
+This is a Next.js 15 shopping list management application using MUI components with custom wrappers to avoid direct dependency on MUI throughout the codebase.
+
+## Architecture Principles
+
+### 1. Component Architecture
+- **Custom Component Wrappers**: Never use MUI components directly in business logic components
+- **Abstraction Layer**: Create custom components that wrap MUI components in `src/components/ui/`
+- **Separation of Concerns**: Business logic components should only use custom UI components
+- **Consistent API**: All custom components should have consistent prop interfaces
+
+### 2. Folder Structure
+```
+SuperList/
+├── app/                    # Next.js 15 App Router (root level)
+│   ├── (auth)/            # Route groups
+│   ├── (dashboard)/       # Protected dashboard routes
+│   ├── api/               # API routes
+│   ├── globals.css        # Global styles
+│   ├── layout.tsx         # Root layout
+│   ├── loading.tsx        # Global loading UI
+│   ├── error.tsx          # Global error UI
+│   ├── not-found.tsx      # 404 page
+│   └── page.tsx           # Homepage
+├── src/                   # Source code directory
+│   ├── components/        # Reusable components
+│   │   ├── ui/           # MUI wrapper components
+│   │   ├── forms/        # Form components
+│   │   ├── layout/       # Layout components
+│   │   ├── features/     # Feature-specific components
+│   │   └── providers/    # Context providers
+│   ├── lib/              # Utilities and configurations
+│   │   ├── api/          # API client and utilities
+│   │   ├── auth/         # Authentication logic
+│   │   ├── db/           # Database utilities
+│   │   ├── data/         # Mock data and data utilities
+│   │   ├── utils/        # General utilities
+│   │   ├── validations/  # Zod schemas
+│   │   └── constants/    # App constants
+│   ├── hooks/            # Custom React hooks
+│   ├── types/            # TypeScript type definitions
+│   ├── stores/           # State management (Zustand)
+│   └── actions/          # Server Actions
+├── public/               # Static assets
+├── middleware.ts         # Next.js middleware (root level)
+├── tsconfig.json         # TypeScript configuration
+└── package.json          # Dependencies and scripts
+```
+
+**Important Notes:**
+- The `app/` directory must be at the root level for Next.js 15 App Router
+- The `src/` directory contains all source code (components, lib, types, etc.)
+- TypeScript path mapping: `"@/*": ["./src/*"]` in tsconfig.json
+- Never put the `app/` directory inside `src/` - this causes import resolution issues
+
+### 3. Current Implementation Status
+**✅ Completed:**
+- Shopping list dashboard with responsive grid layout
+- MUI wrapper components (Card, Grid, Typography, Progress)
+- Mock data structure with TypeScript interfaces
+- Date formatting and completion calculation utilities
+- Mobile-first responsive design
+- **Internationalization (i18n)** with next-intl (English, Hebrew)
+- **Storage abstraction layer** with repository pattern (JSON, Supabase)
+- **Authentication system** with Supabase Auth and route protection
+- **Advanced theme system** with 9 theme modes and RTL support
+- **React Query integration** with optimistic updates
+- **Snackbar notification system** with message queue
+- **Custom hooks architecture** with separation of queries/mutations
+- **Validation system** with localized Zod schemas
+- **RTL support** for Hebrew language
+
+**📁 Current Data Structure:**
+```typescript
+// src/types/shopping-list.ts
+interface Item {
+  id: string;
+  name: string;
+  tags: string[];
+}
+
+interface ShoppingListItem {
+  itemId: string;
+  quantity: number;
+  collected: boolean;
+}
+
+interface ShoppingList {
+  id: string;
+  name: string;
+  updatedAt: string;
+  items: ShoppingListItem[];
+}
+```
+
+**📊 Mock Data Location:**
+- `src/lib/data/mock-data.ts` - Contains mock items and shopping lists
+- 25+ grocery items with categories and tags
+- 8 sample shopping lists with varying completion states
+
+**🎨 Implemented Components:**
+- `src/components/ui/Card.tsx` - MUI Card wrapper with hover effects
+- `src/components/ui/Grid.tsx` - MUI Grid2 wrapper for responsive layouts
+- `src/components/ui/Typography.tsx` - MUI Typography wrapper
+- `src/components/ui/Progress.tsx` - MUI LinearProgress wrapper with percentage display
+- `src/components/features/ShoppingListCard.tsx` - Individual list card component
+- `src/components/features/ShoppingListsGrid.tsx` - Grid container with empty state
+
+**🛠️ Utilities:**
+- `src/lib/utils/date-formatter.ts` - Smart date formatting (relative/absolute)
+- `src/lib/utils/list-calculator.ts` - Completion percentage calculations
+- `src/lib/utils/search-suggestions.ts` - Search suggestions generator
+- `src/lib/utils/search-helpers.ts` - Search utilities
+- `src/lib/utils/tag-helpers.ts` - Tag management utilities
+
+### 4. Component Naming Conventions
+- **UI Components**: PascalCase with descriptive names (e.g., `CustomButton`, `CustomTextField`)
+- **Feature Components**: PascalCase with feature prefix (e.g., `ShoppingListCard`, `ItemForm`)
+- **Layout Components**: PascalCase with Layout suffix (e.g., `MainLayout`, `AuthLayout`)
+- **Hooks**: camelCase with `use` prefix (e.g., `useShoppingList`, `useAuth`)
+
+### 5. File Naming
+- **Components**: PascalCase (e.g., `ShoppingList.tsx`)
+- **Hooks**: camelCase (e.g., `useShoppingList.ts`)
+- **Utilities**: camelCase (e.g., `formatDate.ts`)
+- **Types**: PascalCase (e.g., `ShoppingList.ts`)
+- **Constants**: UPPER_SNAKE_CASE (e.g., `API_ENDPOINTS.ts`)
+
+## Development Rules
+
+### 1. MUI Component Wrapping
+```typescript
+// ❌ DON'T: Use MUI directly in business components
+import { Button } from '@mui/material';
+
+// ✅ DO: Create wrapper components
+// src/components/ui/Button.tsx
+import { Button as MuiButton, ButtonProps as MuiButtonProps } from '@mui/material';
+
+export interface ButtonProps extends MuiButtonProps {
+  variant?: 'primary' | 'secondary' | 'danger';
+  size?: 'small' | 'medium' | 'large';
+}
+
+export const Button: React.FC<ButtonProps> = ({ variant = 'primary', size = 'medium', ...props }) => {
+  return <MuiButton variant={variant} size={size} {...props} />;
+};
+```
+
+### 2. TypeScript Rules
+- **Strict Types**: Always define proper TypeScript interfaces
+- **No Any**: Avoid `any` type, use proper typing or `unknown`
+- **Generic Components**: Use generics for reusable components
+- **API Types**: Define separate types for API responses and internal state
+
+### 3. State Management
+- **Local State**: Use `useState` for component-specific state
+- **Global State**: Use Zustand for app-wide state (shopping lists, user data)
+- **Server State**: Use TanStack Query v5 for API data and caching
+- **Form State**: Use React Hook Form with Zod validation
+- **URL State**: Use Next.js searchParams for URL-based state
+- **Server State**: Prefer Server Components and Server Actions over client-side fetching
+
+### 4. API Design
+- **RESTful**: Follow REST conventions for API endpoints
+- **Server Actions**: Prefer Server Actions over API routes for mutations
+- **Error Handling**: Implement proper error boundaries and error states
+- **Loading States**: Always handle loading and error states with Suspense
+- **Optimistic Updates**: Use optimistic updates for better UX
+- **Type Safety**: Ensure end-to-end type safety from database to UI
+
+### 5. Performance Rules
+- **Code Splitting**: Use dynamic imports for route-based code splitting
+- **Memoization**: Use `React.memo`, `useMemo`, and `useCallback` appropriately
+- **Image Optimization**: Use Next.js Image component with proper sizing
+- **Bundle Analysis**: Regularly analyze bundle size with @next/bundle-analyzer
+- **Streaming**: Use React Suspense for streaming and progressive loading
+- **Edge Runtime**: Use Edge Runtime for simple API routes when possible
+- **Caching**: Implement proper caching strategies with Next.js cache functions
+
+### 6. Accessibility
+- **ARIA Labels**: Always provide proper ARIA labels and descriptions
+- **Keyboard Navigation**: Ensure all interactive elements are keyboard accessible
+- **Color Contrast**: Maintain WCAG AA compliance (4.5:1 ratio)
+- **Screen Reader**: Test with screen readers and semantic HTML
+- **Focus Management**: Implement proper focus management for modals and navigation
+- **Motion**: Respect prefers-reduced-motion for animations
+
+### 7. Testing Strategy
+- **Unit Tests**: Test individual components and utilities with Vitest
+- **Integration Tests**: Test component interactions with React Testing Library
+- **E2E Tests**: Test critical user flows with Playwright
+- **Test Coverage**: Maintain >80% test coverage
+- **Visual Testing**: Use Chromatic or similar for visual regression testing
+- **API Testing**: Test API routes and Server Actions with proper mocking
+
+## Related Rule Files
+- `ui-rules.mdc` - MUI patterns and component guidelines
+- `data-rules.mdc` - Storage, validation, and server actions
+- `auth-rules.mdc` - Authentication and security patterns
+- `i18n-rules.mdc` - Internationalization and RTL support
+- `theme-rules.mdc` - Theming system and customization
+- `hooks-rules.mdc` - Custom hooks and state management
+- `performance-rules.mdc` - Optimization and best practices# SuperList - Core Architecture Rules
+
+## Project Overview
+This is a Next.js 15 shopping list management application using MUI components with custom wrappers to avoid direct dependency on MUI throughout the codebase.
+
+## Architecture Principles
+
+### 1. Component Architecture
+- **Custom Component Wrappers**: Never use MUI components directly in business logic components
+- **Abstraction Layer**: Create custom components that wrap MUI components in `src/components/ui/`
+- **Separation of Concerns**: Business logic components should only use custom UI components
+- **Consistent API**: All custom components should have consistent prop interfaces
+
+### 2. Folder Structure
+```
+SuperList/
+├── app/                    # Next.js 15 App Router (root level)
+│   ├── (auth)/            # Route groups
+│   ├── (dashboard)/       # Protected dashboard routes
+│   ├── api/               # API routes
+│   ├── globals.css        # Global styles
+│   ├── layout.tsx         # Root layout
+│   ├── loading.tsx        # Global loading UI
+│   ├── error.tsx          # Global error UI
+│   ├── not-found.tsx      # 404 page
+│   └── page.tsx           # Homepage
+├── src/                   # Source code directory
+│   ├── components/        # Reusable components
+│   │   ├── ui/           # MUI wrapper components
+│   │   ├── forms/        # Form components
+│   │   ├── layout/       # Layout components
+│   │   ├── features/     # Feature-specific components
+│   │   └── providers/    # Context providers
+│   ├── lib/              # Utilities and configurations
+│   │   ├── api/          # API client and utilities
+│   │   ├── auth/         # Authentication logic
+│   │   ├── db/           # Database utilities
+│   │   ├── data/         # Mock data and data utilities
+│   │   ├── utils/        # General utilities
+│   │   ├── validations/  # Zod schemas
+│   │   └── constants/    # App constants
+│   ├── hooks/            # Custom React hooks
+│   ├── types/            # TypeScript type definitions
+│   ├── stores/           # State management (Zustand)
+│   └── actions/          # Server Actions
+├── public/               # Static assets
+├── middleware.ts         # Next.js middleware (root level)
+├── tsconfig.json         # TypeScript configuration
+└── package.json          # Dependencies and scripts
+```
+
+**Important Notes:**
+- The `app/` directory must be at the root level for Next.js 15 App Router
+- The `src/` directory contains all source code (components, lib, types, etc.)
+- TypeScript path mapping: `"@/*": ["./src/*"]` in tsconfig.json
+- Never put the `app/` directory inside `src/` - this causes import resolution issues
+
+### 3. Current Implementation Status
+**✅ Completed:**
+- Shopping list dashboard with responsive grid layout
+- MUI wrapper components (Card, Grid, Typography, Progress)
+- Mock data structure with TypeScript interfaces
+- Date formatting and completion calculation utilities
+- Mobile-first responsive design
+- **Internationalization (i18n)** with next-intl (English, Hebrew)
+- **Storage abstraction layer** with repository pattern (JSON, Supabase)
+- **Authentication system** with Supabase Auth and route protection
+- **Advanced theme system** with 9 theme modes and RTL support
+- **React Query integration** with optimistic updates
+- **Snackbar notification system** with message queue
+- **Custom hooks architecture** with separation of queries/mutations
+- **Validation system** with localized Zod schemas
+- **RTL support** for Hebrew language
+
+**📁 Current Data Structure:**
+```typescript
+// src/types/shopping-list.ts
+interface Item {
+  id: string;
+  name: string;
+  tags: string[];
+}
+
+interface ShoppingListItem {
+  itemId: string;
+  quantity: number;
+  collected: boolean;
+}
+
+interface ShoppingList {
+  id: string;
+  name: string;
+  updatedAt: string;
+  items: ShoppingListItem[];
+}
+```
+
+**📊 Mock Data Location:**
+- `src/lib/data/mock-data.ts` - Contains mock items and shopping lists
+- 25+ grocery items with categories and tags
+- 8 sample shopping lists with varying completion states
+
+**🎨 Implemented Components:**
+- `src/components/ui/Card.tsx` - MUI Card wrapper with hover effects
+- `src/components/ui/Grid.tsx` - MUI Grid2 wrapper for responsive layouts
+- `src/components/ui/Typography.tsx` - MUI Typography wrapper
+- `src/components/ui/Progress.tsx` - MUI LinearProgress wrapper with percentage display
+- `src/components/features/ShoppingListCard.tsx` - Individual list card component
+- `src/components/features/ShoppingListsGrid.tsx` - Grid container with empty state
+
+**🛠️ Utilities:**
+- `src/lib/utils/date-formatter.ts` - Smart date formatting (relative/absolute)
+- `src/lib/utils/list-calculator.ts` - Completion percentage calculations
+- `src/lib/utils/search-suggestions.ts` - Search suggestions generator
+- `src/lib/utils/search-helpers.ts` - Search utilities
+- `src/lib/utils/tag-helpers.ts` - Tag management utilities
+
+### 4. Component Naming Conventions
+- **UI Components**: PascalCase with descriptive names (e.g., `CustomButton`, `CustomTextField`)
+- **Feature Components**: PascalCase with feature prefix (e.g., `ShoppingListCard`, `ItemForm`)
+- **Layout Components**: PascalCase with Layout suffix (e.g., `MainLayout`, `AuthLayout`)
+- **Hooks**: camelCase with `use` prefix (e.g., `useShoppingList`, `useAuth`)
+
+### 5. File Naming
+- **Components**: PascalCase (e.g., `ShoppingList.tsx`)
+- **Hooks**: camelCase (e.g., `useShoppingList.ts`)
+- **Utilities**: camelCase (e.g., `formatDate.ts`)
+- **Types**: PascalCase (e.g., `ShoppingList.ts`)
+- **Constants**: UPPER_SNAKE_CASE (e.g., `API_ENDPOINTS.ts`)
+
+## Development Rules
+
+### 1. MUI Component Wrapping
+```typescript
+// ❌ DON'T: Use MUI directly in business components
+import { Button } from '@mui/material';
+
+// ✅ DO: Create wrapper components
+// src/components/ui/Button.tsx
+import { Button as MuiButton, ButtonProps as MuiButtonProps } from '@mui/material';
+
+export interface ButtonProps extends MuiButtonProps {
+  variant?: 'primary' | 'secondary' | 'danger';
+  size?: 'small' | 'medium' | 'large';
+}
+
+export const Button: React.FC<ButtonProps> = ({ variant = 'primary', size = 'medium', ...props }) => {
+  return <MuiButton variant={variant} size={size} {...props} />;
+};
+```
+
+### 2. TypeScript Rules
+- **Strict Types**: Always define proper TypeScript interfaces
+- **No Any**: Avoid `any` type, use proper typing or `unknown`
+- **Generic Components**: Use generics for reusable components
+- **API Types**: Define separate types for API responses and internal state
+
+### 3. State Management
+- **Local State**: Use `useState` for component-specific state
+- **Global State**: Use Zustand for app-wide state (shopping lists, user data)
+- **Server State**: Use TanStack Query v5 for API data and caching
+- **Form State**: Use React Hook Form with Zod validation
+- **URL State**: Use Next.js searchParams for URL-based state
+- **Server State**: Prefer Server Components and Server Actions over client-side fetching
+
+### 4. API Design
+- **RESTful**: Follow REST conventions for API endpoints
+- **Server Actions**: Prefer Server Actions over API routes for mutations
+- **Error Handling**: Implement proper error boundaries and error states
+- **Loading States**: Always handle loading and error states with Suspense
+- **Optimistic Updates**: Use optimistic updates for better UX
+- **Type Safety**: Ensure end-to-end type safety from database to UI
+
+### 5. Performance Rules
+- **Code Splitting**: Use dynamic imports for route-based code splitting
+- **Memoization**: Use `React.memo`, `useMemo`, and `useCallback` appropriately
+- **Image Optimization**: Use Next.js Image component with proper sizing
+- **Bundle Analysis**: Regularly analyze bundle size with @next/bundle-analyzer
+- **Streaming**: Use React Suspense for streaming and progressive loading
+- **Edge Runtime**: Use Edge Runtime for simple API routes when possible
+- **Caching**: Implement proper caching strategies with Next.js cache functions
+
+### 6. Accessibility
+- **ARIA Labels**: Always provide proper ARIA labels and descriptions
+- **Keyboard Navigation**: Ensure all interactive elements are keyboard accessible
+- **Color Contrast**: Maintain WCAG AA compliance (4.5:1 ratio)
+- **Screen Reader**: Test with screen readers and semantic HTML
+- **Focus Management**: Implement proper focus management for modals and navigation
+- **Motion**: Respect prefers-reduced-motion for animations
+
+### 7. Testing Strategy
+- **Unit Tests**: Test individual components and utilities with Vitest
+- **Integration Tests**: Test component interactions with React Testing Library
+- **E2E Tests**: Test critical user flows with Playwright
+- **Test Coverage**: Maintain >80% test coverage
+- **Visual Testing**: Use Chromatic or similar for visual regression testing
+- **API Testing**: Test API routes and Server Actions with proper mocking
+
+## Related Rule Files
+- `ui-rules.mdc` - MUI patterns and component guidelines
+- `data-rules.mdc` - Storage, validation, and server actions
+- `auth-rules.mdc` - Authentication and security patterns
+- `i18n-rules.mdc` - Internationalization and RTL support
+- `theme-rules.mdc` - Theming system and customization
+- `hooks-rules.mdc` - Custom hooks and state management
+- `performance-rules.mdc` - Optimization and best practices

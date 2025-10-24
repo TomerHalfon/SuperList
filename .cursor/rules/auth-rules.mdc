@@ -1,0 +1,205 @@
+---
+alwaysApply: false
+---
+
+export async function POST(request: NextRequest) {
+  try {
+    // Authentication
+    const user = await validateRequest(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Validation
+    const body = await request.json();
+    const validatedData = createListSchema.parse(body);
+
+    // Business Logic
+    const shoppingList = await createShoppingList({
+      ...validatedData,
+      userId: user.id,
+    });
+
+    return NextResponse.json(shoppingList, { status: 201 });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Invalid input', details: error.errors }, { status: 400 });
+    }
+    
+    console.error('API Error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+```
+
+### 5. Middleware Security
+```typescript
+// middleware.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { validateToken } from '@/lib/auth/validate';
+
+export async function middleware(request: NextRequest) {
+  // Authentication check for protected routes
+  if (request.nextUrl.pathname.startsWith('/dashboard')) {
+    const token = request.cookies.get('auth-token')?.value;
+    
+    if (!token || !(await validateToken(token))) {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+  }
+
+  // Rate limiting
+  const ip = request.ip ?? '127.0.0.1';
+  const rateLimitResult = await checkRateLimit(ip);
+  
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many requests' },
+      { status: 429 }
+    );
+  }
+
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: ['/dashboard/:path*', '/api/:path*'],
+};
+```
+
+### 6. Error Handling & Logging
+```typescript
+// lib/error-handler.ts
+export class AppError extends Error {
+  constructor(
+    message: string,
+    public statusCode: number = 500,
+    public isOperational: boolean = true
+  ) {
+    super(message);
+    this.name = this.constructor.name;
+    Error.captureStackTrace(this, this.constructor);
+  }
+}
+
+export function handleApiError(error: unknown) {
+  if (error instanceof AppError) {
+    return NextResponse.json(
+      { error: error.message },
+      { status: error.statusCode }
+    );
+  }
+
+  if (error instanceof z.ZodError) {
+    return NextResponse.json(
+      { error: 'Validation failed', details: error.errors },
+      { status: 400 }
+    );
+  }
+
+  // Log unexpected errors
+  console.error('Unexpected error:', error);
+  
+  return NextResponse.json(
+    { error: 'Internal server error' },
+    { status: 500 }
+  );
+}
+```
+
+### 7. File Upload Security
+```typescript
+// Use UploadThing or similar service for production
+// app/api/upload/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { writeFile, mkdir } from 'fs/promises';
+import { join } from 'path';
+import { z } from 'zod';
+
+const uploadSchema = z.object({
+  file: z.instanceof(File).refine(
+    (file) => file.size <= 5 * 1024 * 1024, // 5MB limit
+    'File size must be less than 5MB'
+  ).refine(
+    (file) => ['image/jpeg', 'image/png', 'image/webp'].includes(file.type),
+    'Only JPEG, PNG, and WebP images are allowed'
+  ),
+});
+
+export async function POST(request: NextRequest) {
+  try {
+    const data = await request.formData();
+    const file: File | null = data.get('file') as unknown as File;
+
+    if (!file) {
+      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
+    }
+
+    // Validate file
+    const validation = uploadSchema.safeParse({ file });
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: 'Invalid file', details: validation.error.errors },
+        { status: 400 }
+      );
+    }
+
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+
+    // Create uploads directory if it doesn't exist
+    const uploadsDir = join(process.cwd(), 'public/uploads');
+    await mkdir(uploadsDir, { recursive: true });
+
+    // Generate unique filename
+    const timestamp = Date.now();
+    const filename = `${timestamp}-${file.name}`;
+    const path = join(uploadsDir, filename);
+    
+    await writeFile(path, buffer);
+
+    return NextResponse.json({ 
+      success: true, 
+      path: `/uploads/${filename}`,
+      size: file.size,
+      type: file.type
+    });
+  } catch (error) {
+    console.error('Upload error:', error);
+    return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
+  }
+}
+```
+
+## Best Practices
+
+### 1. Authentication
+- **Use Publishable API key** (`NEXT_PUBLIC_SUPABASE_ANON_KEY`) for both client and server
+- **Never expose Secret API key** to client-side code
+- **Separate client and server clients** for proper SSR support
+- **Use Server Actions** for authentication mutations
+- **Implement both client and server route protection**
+- **Handle OAuth redirects securely** with URL validation
+- **Use middleware for server-side session validation**
+- **Revalidate paths** after authentication state changes
+- **Handle loading states** during authentication checks
+- **Provide clear error messages** for authentication failures
+- **Support redirect after login** to original destination
+- **Use proper cookie handling** for session persistence
+
+### 2. Security
+- **Validate all inputs** on both client and server
+- **Use HTTPS** in production
+- **Implement proper CORS** configuration
+- **Use environment variables** for sensitive configuration
+- **Implement rate limiting** for API endpoints
+- **Use proper error handling** without exposing internals
+- **Log security events** for monitoring
+- **Implement proper session management**
+- **Use secure headers** (CSP, HSTS, etc.)
+- **Regular security audits** and dependency updates
+
+## Related Rule Files
+- `core-rules.mdc` - Project overview and basic architecture
+- `data-rules.mdc` - Storage, validation, and server actions
+- `performance-rules.mdc` - Optimization and best practices

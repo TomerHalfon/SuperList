@@ -1,0 +1,1209 @@
+---
+alwaysApply: false
+---
+
+# Data Management Rules
+
+## Storage Abstraction Layer (Repository Pattern)
+
+### 1. Architecture Overview
+The storage layer provides a clean abstraction over different storage implementations using the Repository pattern. This allows easy switching between JSON files (development) and Supabase (production) without changing business logic.
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Components    │───▶│  Server Actions  │───▶│   Repositories  │
+│                 │    │                  │    │                 │
+│ - UI Components │    │ - Validation     │    │ - JSON Storage  │
+│ - Pages         │    │ - Error Handling │    │ - Supabase      │
+│                 │    │ - Revalidation   │    │ - Future: KV    │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+```
+
+### 2. Core Interfaces
+```typescript
+// src/lib/storage/interfaces.ts
+export interface IItemRepository {
+  // Basic CRUD
+  getAll(): Promise<Item[]>;
+  getById(id: string): Promise<Item | null>;
+  create(data: CreateItemInput): Promise<Item>;
+  update(id: string, data: UpdateItemInput): Promise<Item>;
+  delete(id: string): Promise<void>;
+  
+  // Search operations
+  search(query: string): Promise<Item[]>;
+  getByTag(tag: string): Promise<Item[]>;
+  getByTags(tags: string[]): Promise<Item[]>;
+}
+
+export interface IListRepository {
+  // Basic CRUD
+  getAll(): Promise<ShoppingList[]>;
+  getById(id: string): Promise<ShoppingList | null>;
+  create(data: CreateListInput): Promise<ShoppingList>;
+  update(id: string, data: UpdateListInput): Promise<ShoppingList>;
+  delete(id: string): Promise<void>;
+  
+  // Item management
+  addItem(listId: string, item: ShoppingListItem): Promise<ShoppingList>;
+  removeItem(listId: string, itemId: string): Promise<ShoppingList>;
+  updateItem(listId: string, itemId: string, updates: Partial<ShoppingListItem>): Promise<ShoppingList>;
+  toggleItemCollected(listId: string, itemId: string): Promise<ShoppingList>;
+  
+  // List operations
+  duplicateList(id: string, newName?: string): Promise<ShoppingList>;
+  clearCompletedItems(listId: string): Promise<ShoppingList>;
+}
+
+export interface StorageConfig {
+  type: 'json' | 'supabase' | 'vercel-kv' | 'vercel-postgres';
+  options?: Record<string, any>;
+}
+```
+
+### 3. Factory Pattern Implementation
+```typescript
+// src/lib/storage/index.ts
+const getStorageConfig = (): StorageConfig => {
+  const storageType = (process.env.STORAGE_TYPE || 'json') as StorageConfig['type'];
+  
+  return {
+    type: storageType,
+    options: {
+      // Future: Add KV/Postgres connection options here
+    },
+  };
+};
+
+// Storage instances (singleton pattern for JSON only)
+let jsonItemRepository: JsonItemRepository | null = null;
+let jsonListRepository: JsonListRepository | null = null;
+
+/**
+ * Get the item repository instance for server-side usage
+ */
+export async function getItemRepository(): Promise<IItemRepository> {
+  const config = getStorageConfig();
+  
+  switch (config.type) {
+    case 'json':
+      if (!jsonItemRepository) {
+        const jsonStorage = new JsonStorage(config.options?.dataDir);
+        jsonItemRepository = new JsonItemRepository(jsonStorage);
+      }
+      return jsonItemRepository;
+      
+    case 'supabase':
+      // For server-side, create a new client each time
+      const serverClient = await createServerSupabaseClient();
+      return new SupabaseItemRepository(serverClient);
+      
+    case 'vercel-kv':
+      throw new Error('Vercel KV storage not yet implemented');
+      
+    case 'vercel-postgres':
+      throw new Error('Vercel Postgres storage not yet implemented');
+      
+    default:
+      throw new Error(`Unsupported storage type: ${config.type}`);
+  }
+}
+
+/**
+ * Get the list repository instance for server-side usage
+ */
+export async function getListRepository(): Promise<IListRepository> {
+  const config = getStorageConfig();
+  
+  switch (config.type) {
+    case 'json':
+      if (!jsonListRepository) {
+        const jsonStorage = new JsonStorage(config.options?.dataDir);
+        jsonListRepository = new JsonListRepository(jsonStorage);
+      }
+      return jsonListRepository;
+      
+    case 'supabase':
+      const serverClient = await createServerSupabaseClient();
+      return new SupabaseListRepository(serverClient);
+      
+    default:
+      throw new Error(`Unsupported storage type: ${config.type}`);
+  }
+}
+
+/**
+ * Get the item repository instance for client-side usage
+ * Note: This is synchronous and uses the browser client
+ */
+export function getClientItemRepository(): IItemRepository {
+  const client = createClientSupabaseClient();
+  return new SupabaseItemRepository(client);
+}
+
+/**
+ * Get the list repository instance for client-side usage
+ */
+export function getClientListRepository(): IListRepository {
+  const client = createClientSupabaseClient();
+  return new SupabaseListRepository(client);
+}
+```
+
+### 4. JSON Storage Implementation
+```typescript
+// src/lib/storage/json/json-storage.ts
+export class JsonStorage {
+  constructor(private dataDir: string = 'data') {}
+
+  async readJson<T>(filename: string, defaultValue: T): Promise<T> {
+    const filePath = path.join(this.dataDir, filename);
+    
+    try {
+      const data = await fs.readFile(filePath, 'utf-8');
+      return JSON.parse(data);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        // File doesn't exist, return default value
+        return defaultValue;
+      }
+      throw new StorageError(`Failed to read ${filename}: ${error}`);
+    }
+  }
+
+  async writeJson<T>(filename: string, data: T): Promise<void> {
+    const filePath = path.join(this.dataDir, filename);
+    const tempPath = `${filePath}.tmp`;
+    
+    try {
+      // Ensure directory exists
+      await fs.mkdir(this.dataDir, { recursive: true });
+      
+      // Write to temporary file first (atomic operation)
+      await fs.writeFile(tempPath, JSON.stringify(data, null, 2), 'utf-8');
+      
+      // Rename to final file (atomic on most filesystems)
+      await fs.rename(tempPath, filePath);
+    } catch (error) {
+      // Clean up temp file if it exists
+      try {
+        await fs.unlink(tempPath);
+      } catch {
+        // Ignore cleanup errors
+      }
+      throw new StorageError(`Failed to write ${filename}: ${error}`);
+    }
+  }
+}
+```
+
+### 5. Supabase Implementation
+```typescript
+// src/lib/storage/supabase/item-repository.ts
+export class SupabaseItemRepository implements IItemRepository {
+  constructor(private supabase: SupabaseClient<Database>) {}
+
+  async getAll(): Promise<Item[]> {
+    const { data, error } = await this.supabase
+      .from('items')
+      .select('*')
+      .eq('deleted_at', null)
+      .order('name');
+
+    if (error) {
+      throw new StorageError(`Failed to fetch items: ${error.message}`);
+    }
+
+    return data || [];
+  }
+
+  async getById(id: string): Promise<Item | null> {
+    const { data, error } = await this.supabase
+      .from('items')
+      .select('*')
+      .eq('id', id)
+      .eq('deleted_at', null)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null; // Not found
+      }
+      throw new StorageError(`Failed to fetch item: ${error.message}`);
+    }
+
+    return data;
+  }
+
+  async create(data: CreateItemInput): Promise<Item> {
+    const item: Omit<Item, 'id'> = {
+      name: data.name,
+      emoji: data.emoji,
+      tags: data.tags,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: result, error } = await this.supabase
+      .from('items')
+      .insert(item)
+      .select()
+      .single();
+
+    if (error) {
+      throw new StorageError(`Failed to create item: ${error.message}`);
+    }
+
+    return result;
+  }
+
+  async search(query: string): Promise<Item[]> {
+    const { data, error } = await this.supabase
+      .from('items')
+      .select('*')
+      .eq('deleted_at', null)
+      .ilike('name', `%${query}%`)
+      .order('name');
+
+    if (error) {
+      throw new StorageError(`Failed to search items: ${error.message}`);
+    }
+
+    return data || [];
+  }
+}
+```
+
+### 6. Usage in Server Actions
+```typescript
+// src/actions/lists.ts
+'use server';
+
+import { getListRepository } from '@/lib/storage';
+import { validateCreateList, validateUpdateList } from '@/lib/validations/list-schemas';
+
+export async function createListAction(formData: FormData): Promise<ActionResult> {
+  try {
+    // Validation
+    const rawData = {
+      name: formData.get('name'),
+    };
+    
+    const validatedData = validateCreateList(rawData);
+
+    // Get repository and create list
+    const repository = await getListRepository();
+    const list = await repository.create(validatedData);
+
+    return { success: true, data: list };
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      return { success: false, error: error.message };
+    }
+    if (error instanceof StorageError) {
+      return { success: false, error: 'Failed to create list' };
+    }
+    
+    console.error('Unexpected error:', error);
+    return { success: false, error: 'An unexpected error occurred' };
+  }
+}
+```
+
+### 7. Environment Configuration
+```bash
+# .env.local
+STORAGE_TYPE=json          # Development: json, Production: supabase
+STORAGE_DATA_DIR=data      # Directory for JSON files (json storage only)
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+```
+
+## Validation with Zod
+
+### 1. Localized Validation Schemas
+```typescript
+// src/lib/validations/item-schemas.ts
+import { z } from 'zod';
+
+// Base schema with static defaults
+const baseItemSchema = z.object({
+  id: z.string().min(1, 'ID is required'),
+  name: z.string().min(1, 'Name is required').max(100, 'Name too long'),
+  emoji: z.string().min(1, 'Emoji is required').max(10, 'Emoji too long'),
+  tags: z.array(z.string().min(1, 'Tag cannot be empty')).max(20, 'Too many tags'),
+});
+
+// Factory function for localized schemas
+export const createItemSchema = (messages: Record<string, string>) => {
+  return z.object({
+    id: z.string().min(1, messages.idRequired || 'ID is required'),
+    name: z.string().min(1, messages.nameRequired || 'Name is required').max(100, messages.nameTooLong || 'Name too long'),
+    emoji: z.string().min(1, messages.emojiRequired || 'Emoji is required').max(10, messages.emojiTooLong || 'Emoji too long'),
+    tags: z.array(z.string().min(1, messages.tagCannotBeEmpty || 'Tag cannot be empty')).max(20, messages.tooManyTags || 'Too many tags'),
+  });
+};
+
+// Static schema for server-side validation
+export const itemSchema = baseItemSchema;
+
+// Schema for creating items (without ID)
+export const createItemSchema = baseItemSchema.omit({ id: true });
+
+// Schema for updating items (all fields optional except ID)
+export const updateItemSchema = baseItemSchema.partial().required({ id: true });
+
+// Schema for shopping list items
+export const shoppingListItemSchema = z.object({
+  itemId: z.string().min(1, 'Item ID is required'),
+  quantity: z.coerce.number().min(1, 'Quantity must be at least 1').max(100, 'Quantity too high'),
+  collected: z.boolean().default(false),
+});
+
+// Factory for localized create item schema
+export const createCreateItemSchema = (messages: Record<string, string>) => {
+  return z.object({
+    name: z.string().min(1, messages.nameRequired || 'Name is required').max(100, messages.nameTooLong || 'Name too long'),
+    emoji: z.string().min(1, messages.emojiRequired || 'Emoji is required').max(10, messages.emojiTooLong || 'Emoji too long'),
+    tags: z.array(z.string().min(1, messages.tagCannotBeEmpty || 'Tag cannot be empty')).max(20, messages.tooManyTags || 'Too many tags'),
+  });
+};
+
+// Factory for localized update item schema
+export const createUpdateItemSchema = (messages: Record<string, string>) => {
+  return z.object({
+    id: z.string().min(1, messages.idRequired || 'ID is required'),
+    name: z.string().min(1, messages.nameRequired || 'Name is required').max(100, messages.nameTooLong || 'Name too long').optional(),
+    emoji: z.string().min(1, messages.emojiRequired || 'Emoji is required').max(10, messages.emojiTooLong || 'Emoji too long').optional(),
+    tags: z.array(z.string().min(1, messages.tagCannotBeEmpty || 'Tag cannot be empty')).max(20, messages.tooManyTags || 'Too many tags').optional(),
+  });
+};
+
+// Static schema for server-side validation (no localization needed)
+export const createItemSchemaStatic = z.object({
+  name: z.string().min(1, 'Name is required').max(100, 'Name too long'),
+  emoji: z.string().min(1, 'Emoji is required').max(10, 'Emoji too long'),
+  tags: z.array(z.string().min(1, 'Tag cannot be empty')).max(20, 'Too many tags'),
+});
+```
+
+### 2. Authentication Validation Schemas
+```typescript
+// src/lib/validations/auth-schemas.ts
+import { z } from 'zod';
+
+// Base schemas
+const emailSchema = z.string().email('Invalid email address');
+const passwordSchema = z.string().min(8, 'Password must be at least 8 characters');
+
+// Factory for localized auth schemas
+export const createAuthSchemas = (messages: Record<string, string>) => {
+  return {
+    signIn: z.object({
+      email: z.string().email(messages.invalidEmail || 'Invalid email address'),
+      password: z.string().min(1, messages.passwordRequired || 'Password is required'),
+    }),
+    signUp: z.object({
+      email: z.string().email(messages.invalidEmail || 'Invalid email address'),
+      password: z.string().min(8, messages.passwordTooShort || 'Password must be at least 8 characters'),
+      confirmPassword: z.string().min(8, messages.confirmPasswordRequired || 'Please confirm your password'),
+    }).refine((data) => data.password === data.confirmPassword, {
+      message: messages.passwordsDoNotMatch || 'Passwords do not match',
+      path: ['confirmPassword'],
+    }),
+  };
+};
+
+// Static schemas for server-side validation
+export const signInSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(1, 'Password is required'),
+});
+
+export const signUpSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  confirmPassword: z.string().min(8, 'Please confirm your password'),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'Passwords do not match',
+  path: ['confirmPassword'],
+});
+```
+
+### 3. List Validation Schemas
+```typescript
+// src/lib/validations/list-schemas.ts
+import { z } from 'zod';
+
+// Base schema
+const baseListSchema = z.object({
+  id: z.string().min(1, 'List ID is required'),
+  name: z.string().min(1, 'List name is required').max(100, 'List name too long'),
+  updatedAt: z.string().datetime('Invalid date format'),
+  items: z.array(z.object({
+    itemId: z.string().min(1, 'Item ID is required'),
+    quantity: z.number().min(1, 'Quantity must be at least 1').max(100, 'Quantity too high'),
+    collected: z.boolean().default(false),
+  })),
+});
+
+// Factory for localized list schemas
+export const createListSchemas = (messages: Record<string, string>) => {
+  return {
+    create: z.object({
+      name: z.string().min(1, messages.listNameRequired || 'List name is required').max(100, messages.listNameTooLong || 'List name too long'),
+    }),
+    update: z.object({
+      id: z.string().min(1, messages.listIdRequired || 'List ID is required'),
+      name: z.string().min(1, messages.listNameRequired || 'List name is required').max(100, messages.listNameTooLong || 'List name too long').optional(),
+    }),
+  };
+};
+
+// Static schemas for server-side validation
+export const createShoppingListSchema = z.object({
+  name: z.string().min(1, 'List name is required').max(100, 'List name too long'),
+});
+
+export const updateShoppingListSchema = z.object({
+  id: z.string().min(1, 'List ID is required'),
+  name: z.string().min(1, 'List name is required').max(100, 'List name too long').optional(),
+});
+```
+
+### 4. Usage in Server Actions
+```typescript
+// src/actions/items.ts
+'use server';
+
+import { createItemSchemaStatic } from '@/lib/validations/item-schemas';
+import { getItemRepository } from '@/lib/storage';
+
+export async function createItemAction(formData: FormData): Promise<ActionResult> {
+  try {
+    // Extract and validate data
+    const rawData = {
+      name: formData.get('name'),
+      emoji: formData.get('emoji'),
+      tags: formData.get('tags') ? JSON.parse(formData.get('tags') as string) : [],
+    };
+
+    // Validate with Zod
+    const validatedData = createItemSchemaStatic.parse(rawData);
+
+    // Get repository and create item
+    const repository = await getItemRepository();
+    const item = await repository.create(validatedData);
+
+    return { success: true, data: item };
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return { 
+        success: false, 
+        error: 'Validation failed', 
+        details: error.errors 
+      };
+    }
+    
+    console.error('Unexpected error:', error);
+    return { success: false, error: 'An unexpected error occurred' };
+  }
+}
+```
+
+### 5. Usage in Client Components
+```typescript
+// Using validation in forms
+export const ItemForm: React.FC = () => {
+  const { showError } = useSnackbar();
+  const createItemMutation = useCreateItem();
+  const t = useTranslations('validation');
+
+  const handleSubmit = async (formData: FormData) => {
+    try {
+      // Client-side validation with localized messages
+      const messages = {
+        nameRequired: t('nameRequired'),
+        nameTooLong: t('nameTooLong'),
+        emojiRequired: t('emojiRequired'),
+        emojiTooLong: t('emojiTooLong'),
+        tagCannotBeEmpty: t('tagCannotBeEmpty'),
+        tooManyTags: t('tooManyTags'),
+      };
+
+      const schema = createCreateItemSchema(messages);
+      const rawData = {
+        name: formData.get('name'),
+        emoji: formData.get('emoji'),
+        tags: formData.get('tags') ? JSON.parse(formData.get('tags') as string) : [],
+      };
+
+      const validatedData = schema.parse(rawData);
+      
+      // Create FormData with validated data
+      const validatedFormData = new FormData();
+      Object.entries(validatedData).forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+          validatedFormData.append(key, JSON.stringify(value));
+        } else {
+          validatedFormData.append(key, String(value));
+        }
+      });
+
+      await createItemMutation.mutateAsync(validatedFormData);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        // Show first validation error
+        const firstError = error.errors[0];
+        showError(`${firstError.path.join('.')}: ${firstError.message}`);
+      } else {
+        showError('Failed to create item');
+      }
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      {/* Form fields */}
+    </form>
+  );
+};
+```
+
+## Best Practices
+
+### 1. Storage Layer
+- **Always use repository pattern**, never direct database access
+- **Use factory functions** to get repository instances
+- **Separate client and server repositories** for proper SSR support
+- **Implement proper error handling** with custom error types
+- **Use atomic operations** for data consistency
+- **Validate data** before passing to repositories
+- **Use singleton pattern** for JSON storage to avoid file conflicts
+- **Create new Supabase clients** for each server request
+- **Handle soft deletes** with `deleted_at` timestamps
+- **Use transactions** for multi-step operations when possible
+
+### 2. Validation
+- **Use factory functions** for localized validation schemas
+- **Provide static schemas** for server-side validation
+- **Use consistent error messages** across client and server
+- **Implement proper error handling** for validation failures
+- **Use Zod's built-in transformations** (e.g., `z.coerce.number()`)
+- **Validate on both client and server** for better UX and security
+- **Use schema composition** for complex validation rules
+- **Provide fallback messages** in factory functions
+- **Use proper TypeScript types** with `z.infer<>`
+- **Handle array and object validation** properly
+- **Use custom error messages** for better user experience
+- **Implement proper error boundaries** for validation errors
+- **Use schema refinement** for complex validation logic
+- **Test validation schemas** with edge cases
+
+## Related Rule Files
+- `core-rules.mdc` - Project overview and basic architecture
+- `auth-rules.mdc` - Authentication and security patterns
+- `hooks-rules.mdc` - Custom hooks and state management
+- `performance-rules.mdc` - Optimization and best practices# Data Management Rules
+
+## Storage Abstraction Layer (Repository Pattern)
+
+### 1. Architecture Overview
+The storage layer provides a clean abstraction over different storage implementations using the Repository pattern. This allows easy switching between JSON files (development) and Supabase (production) without changing business logic.
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Components    │───▶│  Server Actions  │───▶│   Repositories  │
+│                 │    │                  │    │                 │
+│ - UI Components │    │ - Validation     │    │ - JSON Storage  │
+│ - Pages         │    │ - Error Handling │    │ - Supabase      │
+│                 │    │ - Revalidation   │    │ - Future: KV    │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+```
+
+### 2. Core Interfaces
+```typescript
+// src/lib/storage/interfaces.ts
+export interface IItemRepository {
+  // Basic CRUD
+  getAll(): Promise<Item[]>;
+  getById(id: string): Promise<Item | null>;
+  create(data: CreateItemInput): Promise<Item>;
+  update(id: string, data: UpdateItemInput): Promise<Item>;
+  delete(id: string): Promise<void>;
+  
+  // Search operations
+  search(query: string): Promise<Item[]>;
+  getByTag(tag: string): Promise<Item[]>;
+  getByTags(tags: string[]): Promise<Item[]>;
+}
+
+export interface IListRepository {
+  // Basic CRUD
+  getAll(): Promise<ShoppingList[]>;
+  getById(id: string): Promise<ShoppingList | null>;
+  create(data: CreateListInput): Promise<ShoppingList>;
+  update(id: string, data: UpdateListInput): Promise<ShoppingList>;
+  delete(id: string): Promise<void>;
+  
+  // Item management
+  addItem(listId: string, item: ShoppingListItem): Promise<ShoppingList>;
+  removeItem(listId: string, itemId: string): Promise<ShoppingList>;
+  updateItem(listId: string, itemId: string, updates: Partial<ShoppingListItem>): Promise<ShoppingList>;
+  toggleItemCollected(listId: string, itemId: string): Promise<ShoppingList>;
+  
+  // List operations
+  duplicateList(id: string, newName?: string): Promise<ShoppingList>;
+  clearCompletedItems(listId: string): Promise<ShoppingList>;
+}
+
+export interface StorageConfig {
+  type: 'json' | 'supabase' | 'vercel-kv' | 'vercel-postgres';
+  options?: Record<string, any>;
+}
+```
+
+### 3. Factory Pattern Implementation
+```typescript
+// src/lib/storage/index.ts
+const getStorageConfig = (): StorageConfig => {
+  const storageType = (process.env.STORAGE_TYPE || 'json') as StorageConfig['type'];
+  
+  return {
+    type: storageType,
+    options: {
+      // Future: Add KV/Postgres connection options here
+    },
+  };
+};
+
+// Storage instances (singleton pattern for JSON only)
+let jsonItemRepository: JsonItemRepository | null = null;
+let jsonListRepository: JsonListRepository | null = null;
+
+/**
+ * Get the item repository instance for server-side usage
+ */
+export async function getItemRepository(): Promise<IItemRepository> {
+  const config = getStorageConfig();
+  
+  switch (config.type) {
+    case 'json':
+      if (!jsonItemRepository) {
+        const jsonStorage = new JsonStorage(config.options?.dataDir);
+        jsonItemRepository = new JsonItemRepository(jsonStorage);
+      }
+      return jsonItemRepository;
+      
+    case 'supabase':
+      // For server-side, create a new client each time
+      const serverClient = await createServerSupabaseClient();
+      return new SupabaseItemRepository(serverClient);
+      
+    case 'vercel-kv':
+      throw new Error('Vercel KV storage not yet implemented');
+      
+    case 'vercel-postgres':
+      throw new Error('Vercel Postgres storage not yet implemented');
+      
+    default:
+      throw new Error(`Unsupported storage type: ${config.type}`);
+  }
+}
+
+/**
+ * Get the list repository instance for server-side usage
+ */
+export async function getListRepository(): Promise<IListRepository> {
+  const config = getStorageConfig();
+  
+  switch (config.type) {
+    case 'json':
+      if (!jsonListRepository) {
+        const jsonStorage = new JsonStorage(config.options?.dataDir);
+        jsonListRepository = new JsonListRepository(jsonStorage);
+      }
+      return jsonListRepository;
+      
+    case 'supabase':
+      const serverClient = await createServerSupabaseClient();
+      return new SupabaseListRepository(serverClient);
+      
+    default:
+      throw new Error(`Unsupported storage type: ${config.type}`);
+  }
+}
+
+/**
+ * Get the item repository instance for client-side usage
+ * Note: This is synchronous and uses the browser client
+ */
+export function getClientItemRepository(): IItemRepository {
+  const client = createClientSupabaseClient();
+  return new SupabaseItemRepository(client);
+}
+
+/**
+ * Get the list repository instance for client-side usage
+ */
+export function getClientListRepository(): IListRepository {
+  const client = createClientSupabaseClient();
+  return new SupabaseListRepository(client);
+}
+```
+
+### 4. JSON Storage Implementation
+```typescript
+// src/lib/storage/json/json-storage.ts
+export class JsonStorage {
+  constructor(private dataDir: string = 'data') {}
+
+  async readJson<T>(filename: string, defaultValue: T): Promise<T> {
+    const filePath = path.join(this.dataDir, filename);
+    
+    try {
+      const data = await fs.readFile(filePath, 'utf-8');
+      return JSON.parse(data);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        // File doesn't exist, return default value
+        return defaultValue;
+      }
+      throw new StorageError(`Failed to read ${filename}: ${error}`);
+    }
+  }
+
+  async writeJson<T>(filename: string, data: T): Promise<void> {
+    const filePath = path.join(this.dataDir, filename);
+    const tempPath = `${filePath}.tmp`;
+    
+    try {
+      // Ensure directory exists
+      await fs.mkdir(this.dataDir, { recursive: true });
+      
+      // Write to temporary file first (atomic operation)
+      await fs.writeFile(tempPath, JSON.stringify(data, null, 2), 'utf-8');
+      
+      // Rename to final file (atomic on most filesystems)
+      await fs.rename(tempPath, filePath);
+    } catch (error) {
+      // Clean up temp file if it exists
+      try {
+        await fs.unlink(tempPath);
+      } catch {
+        // Ignore cleanup errors
+      }
+      throw new StorageError(`Failed to write ${filename}: ${error}`);
+    }
+  }
+}
+```
+
+### 5. Supabase Implementation
+```typescript
+// src/lib/storage/supabase/item-repository.ts
+export class SupabaseItemRepository implements IItemRepository {
+  constructor(private supabase: SupabaseClient<Database>) {}
+
+  async getAll(): Promise<Item[]> {
+    const { data, error } = await this.supabase
+      .from('items')
+      .select('*')
+      .eq('deleted_at', null)
+      .order('name');
+
+    if (error) {
+      throw new StorageError(`Failed to fetch items: ${error.message}`);
+    }
+
+    return data || [];
+  }
+
+  async getById(id: string): Promise<Item | null> {
+    const { data, error } = await this.supabase
+      .from('items')
+      .select('*')
+      .eq('id', id)
+      .eq('deleted_at', null)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null; // Not found
+      }
+      throw new StorageError(`Failed to fetch item: ${error.message}`);
+    }
+
+    return data;
+  }
+
+  async create(data: CreateItemInput): Promise<Item> {
+    const item: Omit<Item, 'id'> = {
+      name: data.name,
+      emoji: data.emoji,
+      tags: data.tags,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: result, error } = await this.supabase
+      .from('items')
+      .insert(item)
+      .select()
+      .single();
+
+    if (error) {
+      throw new StorageError(`Failed to create item: ${error.message}`);
+    }
+
+    return result;
+  }
+
+  async search(query: string): Promise<Item[]> {
+    const { data, error } = await this.supabase
+      .from('items')
+      .select('*')
+      .eq('deleted_at', null)
+      .ilike('name', `%${query}%`)
+      .order('name');
+
+    if (error) {
+      throw new StorageError(`Failed to search items: ${error.message}`);
+    }
+
+    return data || [];
+  }
+}
+```
+
+### 6. Usage in Server Actions
+```typescript
+// src/actions/lists.ts
+'use server';
+
+import { getListRepository } from '@/lib/storage';
+import { validateCreateList, validateUpdateList } from '@/lib/validations/list-schemas';
+
+export async function createListAction(formData: FormData): Promise<ActionResult> {
+  try {
+    // Validation
+    const rawData = {
+      name: formData.get('name'),
+    };
+    
+    const validatedData = validateCreateList(rawData);
+
+    // Get repository and create list
+    const repository = await getListRepository();
+    const list = await repository.create(validatedData);
+
+    return { success: true, data: list };
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      return { success: false, error: error.message };
+    }
+    if (error instanceof StorageError) {
+      return { success: false, error: 'Failed to create list' };
+    }
+    
+    console.error('Unexpected error:', error);
+    return { success: false, error: 'An unexpected error occurred' };
+  }
+}
+```
+
+### 7. Environment Configuration
+```bash
+# .env.local
+STORAGE_TYPE=json          # Development: json, Production: supabase
+STORAGE_DATA_DIR=data      # Directory for JSON files (json storage only)
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+```
+
+## Validation with Zod
+
+### 1. Localized Validation Schemas
+```typescript
+// src/lib/validations/item-schemas.ts
+import { z } from 'zod';
+
+// Base schema with static defaults
+const baseItemSchema = z.object({
+  id: z.string().min(1, 'ID is required'),
+  name: z.string().min(1, 'Name is required').max(100, 'Name too long'),
+  emoji: z.string().min(1, 'Emoji is required').max(10, 'Emoji too long'),
+  tags: z.array(z.string().min(1, 'Tag cannot be empty')).max(20, 'Too many tags'),
+});
+
+// Factory function for localized schemas
+export const createItemSchema = (messages: Record<string, string>) => {
+  return z.object({
+    id: z.string().min(1, messages.idRequired || 'ID is required'),
+    name: z.string().min(1, messages.nameRequired || 'Name is required').max(100, messages.nameTooLong || 'Name too long'),
+    emoji: z.string().min(1, messages.emojiRequired || 'Emoji is required').max(10, messages.emojiTooLong || 'Emoji too long'),
+    tags: z.array(z.string().min(1, messages.tagCannotBeEmpty || 'Tag cannot be empty')).max(20, messages.tooManyTags || 'Too many tags'),
+  });
+};
+
+// Static schema for server-side validation
+export const itemSchema = baseItemSchema;
+
+// Schema for creating items (without ID)
+export const createItemSchema = baseItemSchema.omit({ id: true });
+
+// Schema for updating items (all fields optional except ID)
+export const updateItemSchema = baseItemSchema.partial().required({ id: true });
+
+// Schema for shopping list items
+export const shoppingListItemSchema = z.object({
+  itemId: z.string().min(1, 'Item ID is required'),
+  quantity: z.coerce.number().min(1, 'Quantity must be at least 1').max(100, 'Quantity too high'),
+  collected: z.boolean().default(false),
+});
+
+// Factory for localized create item schema
+export const createCreateItemSchema = (messages: Record<string, string>) => {
+  return z.object({
+    name: z.string().min(1, messages.nameRequired || 'Name is required').max(100, messages.nameTooLong || 'Name too long'),
+    emoji: z.string().min(1, messages.emojiRequired || 'Emoji is required').max(10, messages.emojiTooLong || 'Emoji too long'),
+    tags: z.array(z.string().min(1, messages.tagCannotBeEmpty || 'Tag cannot be empty')).max(20, messages.tooManyTags || 'Too many tags'),
+  });
+};
+
+// Factory for localized update item schema
+export const createUpdateItemSchema = (messages: Record<string, string>) => {
+  return z.object({
+    id: z.string().min(1, messages.idRequired || 'ID is required'),
+    name: z.string().min(1, messages.nameRequired || 'Name is required').max(100, messages.nameTooLong || 'Name too long').optional(),
+    emoji: z.string().min(1, messages.emojiRequired || 'Emoji is required').max(10, messages.emojiTooLong || 'Emoji too long').optional(),
+    tags: z.array(z.string().min(1, messages.tagCannotBeEmpty || 'Tag cannot be empty')).max(20, messages.tooManyTags || 'Too many tags').optional(),
+  });
+};
+
+// Static schema for server-side validation (no localization needed)
+export const createItemSchemaStatic = z.object({
+  name: z.string().min(1, 'Name is required').max(100, 'Name too long'),
+  emoji: z.string().min(1, 'Emoji is required').max(10, 'Emoji too long'),
+  tags: z.array(z.string().min(1, 'Tag cannot be empty')).max(20, 'Too many tags'),
+});
+```
+
+### 2. Authentication Validation Schemas
+```typescript
+// src/lib/validations/auth-schemas.ts
+import { z } from 'zod';
+
+// Base schemas
+const emailSchema = z.string().email('Invalid email address');
+const passwordSchema = z.string().min(8, 'Password must be at least 8 characters');
+
+// Factory for localized auth schemas
+export const createAuthSchemas = (messages: Record<string, string>) => {
+  return {
+    signIn: z.object({
+      email: z.string().email(messages.invalidEmail || 'Invalid email address'),
+      password: z.string().min(1, messages.passwordRequired || 'Password is required'),
+    }),
+    signUp: z.object({
+      email: z.string().email(messages.invalidEmail || 'Invalid email address'),
+      password: z.string().min(8, messages.passwordTooShort || 'Password must be at least 8 characters'),
+      confirmPassword: z.string().min(8, messages.confirmPasswordRequired || 'Please confirm your password'),
+    }).refine((data) => data.password === data.confirmPassword, {
+      message: messages.passwordsDoNotMatch || 'Passwords do not match',
+      path: ['confirmPassword'],
+    }),
+  };
+};
+
+// Static schemas for server-side validation
+export const signInSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(1, 'Password is required'),
+});
+
+export const signUpSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  confirmPassword: z.string().min(8, 'Please confirm your password'),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'Passwords do not match',
+  path: ['confirmPassword'],
+});
+```
+
+### 3. List Validation Schemas
+```typescript
+// src/lib/validations/list-schemas.ts
+import { z } from 'zod';
+
+// Base schema
+const baseListSchema = z.object({
+  id: z.string().min(1, 'List ID is required'),
+  name: z.string().min(1, 'List name is required').max(100, 'List name too long'),
+  updatedAt: z.string().datetime('Invalid date format'),
+  items: z.array(z.object({
+    itemId: z.string().min(1, 'Item ID is required'),
+    quantity: z.number().min(1, 'Quantity must be at least 1').max(100, 'Quantity too high'),
+    collected: z.boolean().default(false),
+  })),
+});
+
+// Factory for localized list schemas
+export const createListSchemas = (messages: Record<string, string>) => {
+  return {
+    create: z.object({
+      name: z.string().min(1, messages.listNameRequired || 'List name is required').max(100, messages.listNameTooLong || 'List name too long'),
+    }),
+    update: z.object({
+      id: z.string().min(1, messages.listIdRequired || 'List ID is required'),
+      name: z.string().min(1, messages.listNameRequired || 'List name is required').max(100, messages.listNameTooLong || 'List name too long').optional(),
+    }),
+  };
+};
+
+// Static schemas for server-side validation
+export const createShoppingListSchema = z.object({
+  name: z.string().min(1, 'List name is required').max(100, 'List name too long'),
+});
+
+export const updateShoppingListSchema = z.object({
+  id: z.string().min(1, 'List ID is required'),
+  name: z.string().min(1, 'List name is required').max(100, 'List name too long').optional(),
+});
+```
+
+### 4. Usage in Server Actions
+```typescript
+// src/actions/items.ts
+'use server';
+
+import { createItemSchemaStatic } from '@/lib/validations/item-schemas';
+import { getItemRepository } from '@/lib/storage';
+
+export async function createItemAction(formData: FormData): Promise<ActionResult> {
+  try {
+    // Extract and validate data
+    const rawData = {
+      name: formData.get('name'),
+      emoji: formData.get('emoji'),
+      tags: formData.get('tags') ? JSON.parse(formData.get('tags') as string) : [],
+    };
+
+    // Validate with Zod
+    const validatedData = createItemSchemaStatic.parse(rawData);
+
+    // Get repository and create item
+    const repository = await getItemRepository();
+    const item = await repository.create(validatedData);
+
+    return { success: true, data: item };
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return { 
+        success: false, 
+        error: 'Validation failed', 
+        details: error.errors 
+      };
+    }
+    
+    console.error('Unexpected error:', error);
+    return { success: false, error: 'An unexpected error occurred' };
+  }
+}
+```
+
+### 5. Usage in Client Components
+```typescript
+// Using validation in forms
+export const ItemForm: React.FC = () => {
+  const { showError } = useSnackbar();
+  const createItemMutation = useCreateItem();
+  const t = useTranslations('validation');
+
+  const handleSubmit = async (formData: FormData) => {
+    try {
+      // Client-side validation with localized messages
+      const messages = {
+        nameRequired: t('nameRequired'),
+        nameTooLong: t('nameTooLong'),
+        emojiRequired: t('emojiRequired'),
+        emojiTooLong: t('emojiTooLong'),
+        tagCannotBeEmpty: t('tagCannotBeEmpty'),
+        tooManyTags: t('tooManyTags'),
+      };
+
+      const schema = createCreateItemSchema(messages);
+      const rawData = {
+        name: formData.get('name'),
+        emoji: formData.get('emoji'),
+        tags: formData.get('tags') ? JSON.parse(formData.get('tags') as string) : [],
+      };
+
+      const validatedData = schema.parse(rawData);
+      
+      // Create FormData with validated data
+      const validatedFormData = new FormData();
+      Object.entries(validatedData).forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+          validatedFormData.append(key, JSON.stringify(value));
+        } else {
+          validatedFormData.append(key, String(value));
+        }
+      });
+
+      await createItemMutation.mutateAsync(validatedFormData);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        // Show first validation error
+        const firstError = error.errors[0];
+        showError(`${firstError.path.join('.')}: ${firstError.message}`);
+      } else {
+        showError('Failed to create item');
+      }
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      {/* Form fields */}
+    </form>
+  );
+};
+```
+
+## Best Practices
+
+### 1. Storage Layer
+- **Always use repository pattern**, never direct database access
+- **Use factory functions** to get repository instances
+- **Separate client and server repositories** for proper SSR support
+- **Implement proper error handling** with custom error types
+- **Use atomic operations** for data consistency
+- **Validate data** before passing to repositories
+- **Use singleton pattern** for JSON storage to avoid file conflicts
+- **Create new Supabase clients** for each server request
+- **Handle soft deletes** with `deleted_at` timestamps
+- **Use transactions** for multi-step operations when possible
+
+### 2. Validation
+- **Use factory functions** for localized validation schemas
+- **Provide static schemas** for server-side validation
+- **Use consistent error messages** across client and server
+- **Implement proper error handling** for validation failures
+- **Use Zod's built-in transformations** (e.g., `z.coerce.number()`)
+- **Validate on both client and server** for better UX and security
+- **Use schema composition** for complex validation rules
+- **Provide fallback messages** in factory functions
+- **Use proper TypeScript types** with `z.infer<>`
+- **Handle array and object validation** properly
+- **Use custom error messages** for better user experience
+- **Implement proper error boundaries** for validation errors
+- **Use schema refinement** for complex validation logic
+- **Test validation schemas** with edge cases
+
+## Related Rule Files
+- `core-rules.mdc` - Project overview and basic architecture
+- `auth-rules.mdc` - Authentication and security patterns
+- `hooks-rules.mdc` - Custom hooks and state management
+- `performance-rules.mdc` - Optimization and best practices

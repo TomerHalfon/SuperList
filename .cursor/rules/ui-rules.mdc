@@ -1,0 +1,477 @@
+---
+alwaysApply: false
+---
+
+# UI Component Rules
+
+## MUI Component Wrapping Strategy
+
+### 1. Custom Component Wrappers
+Never use MUI components directly in business logic components. Always create wrapper components in `src/components/ui/`.
+
+```typescript
+// ❌ DON'T: Use MUI directly in business components
+import { Button } from '@mui/material';
+
+// ✅ DO: Create wrapper components
+// src/components/ui/Button.tsx
+import { Button as MuiButton, ButtonProps as MuiButtonProps } from '@mui/material';
+
+export interface ButtonProps extends MuiButtonProps {
+  variant?: 'primary' | 'secondary' | 'danger';
+  size?: 'small' | 'medium' | 'large';
+}
+
+export const Button: React.FC<ButtonProps> = ({ 
+  variant = 'primary', 
+  size = 'medium', 
+  ...props 
+}) => {
+  return <MuiButton variant={variant} size={size} {...props} />;
+};
+```
+
+### 2. Component Structure Pattern
+```typescript
+// Component imports
+import React from 'react';
+import { Button } from '@/components/ui/Button';
+import { useShoppingList } from '@/hooks/useShoppingList';
+import { ShoppingList as ShoppingListType } from '@/types/shopping-list';
+
+// Types
+interface ShoppingListProps {
+  listId: string;
+  onUpdate?: (list: ShoppingListType) => void;
+}
+
+// Component
+export const ShoppingList: React.FC<ShoppingListProps> = ({ listId, onUpdate }) => {
+  // Hooks
+  const { list, updateList, isLoading, error } = useShoppingList(listId);
+  
+  // Event handlers
+  const handleItemAdd = React.useCallback((item: ShoppingItem) => {
+    // Implementation with proper error handling
+  }, [updateList]);
+  
+  // Early returns for loading and error states
+  if (isLoading) return <ShoppingListSkeleton />;
+  if (error) return <ErrorBoundary error={error} />;
+  if (!list) return <EmptyState />;
+  
+  // Render
+  return (
+    <div>
+      {/* Component JSX */}
+    </div>
+  );
+};
+```
+
+### 3. Error Handling in Components
+```typescript
+// Always handle errors gracefully with proper error boundaries
+import { ErrorBoundary } from 'react-error-boundary';
+import { useQuery } from '@tanstack/react-query';
+
+const { data, error, isLoading } = useQuery({
+  queryKey: ['shoppingList', listId],
+  queryFn: () => fetchShoppingList(listId),
+  retry: (failureCount, error) => {
+    // Don't retry on 4xx errors
+    if (error.status >= 400 && error.status < 500) return false;
+    return failureCount < 3;
+  },
+  staleTime: 5 * 60 * 1000, // 5 minutes
+});
+
+// Error boundary wrapper
+<ErrorBoundary
+  FallbackComponent={ErrorFallback}
+  onError={(error, errorInfo) => {
+    console.error('Shopping list error:', error, errorInfo);
+    // Send to error reporting service
+  }}
+>
+  {error ? <ErrorState error={error} /> : <ShoppingListContent data={data} />}
+</ErrorBoundary>
+```
+
+### 4. Form Handling Pattern
+```typescript
+// Use React Hook Form with Zod validation and Server Actions
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { createItemAction } from '@/actions/items';
+import { useActionState } from 'react';
+
+const schema = z.object({
+  name: z.string().min(1, 'Name is required').max(100, 'Name too long'),
+  quantity: z.coerce.number().min(1, 'Quantity must be at least 1'),
+  category: z.string().optional(),
+});
+
+type FormData = z.infer<typeof schema>;
+
+export const ItemForm: React.FC = () => {
+  const [state, formAction, isPending] = useActionState(createItemAction, null);
+  
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<FormData>({
+    resolver: zodResolver(schema),
+  });
+  
+  const onSubmit = (data: FormData) => {
+    const formData = new FormData();
+    Object.entries(data).forEach(([key, value]) => {
+      formData.append(key, String(value));
+    });
+    formAction(formData);
+  };
+  
+  // Reset form on success
+  React.useEffect(() => {
+    if (state?.success) {
+      reset();
+    }
+  }, [state?.success, reset]);
+  
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+      {/* Form fields */}
+      {state?.error && <ErrorMessage message={state.error} />}
+    </form>
+  );
+};
+```
+
+## Component Guidelines
+
+### 1. Responsive Design
+- **Mobile-First**: Design for mobile first, then enhance for larger screens
+- **Breakpoints**: Use MUI's breakpoint system (xs, sm, md, lg, xl)
+- **Grid System**: Use MUI Grid2 for responsive layouts
+- **Typography**: Use responsive typography with theme breakpoints
+
+### 2. Accessibility
+- **ARIA Labels**: Always provide proper ARIA labels and descriptions
+- **Keyboard Navigation**: Ensure all interactive elements are keyboard accessible
+- **Color Contrast**: Maintain WCAG AA compliance (4.5:1 ratio)
+- **Screen Reader**: Test with screen readers and semantic HTML
+- **Focus Management**: Implement proper focus management for modals and navigation
+
+### 3. Performance
+- **Memoization**: Use `React.memo`, `useMemo`, and `useCallback` appropriately
+- **Lazy Loading**: Use dynamic imports for route-based code splitting
+- **Image Optimization**: Use Next.js Image component with proper sizing
+- **Bundle Analysis**: Regularly analyze bundle size with @next/bundle-analyzer
+
+### 4. Testing
+- **Unit Tests**: Test individual components with React Testing Library
+- **Integration Tests**: Test component interactions
+- **Visual Testing**: Use Chromatic or similar for visual regression testing
+- **Accessibility Testing**: Test with screen readers and keyboard navigation
+
+## UI Component Library
+
+### 1. Core Components
+- `Button` - Custom button wrapper with variants
+- `Card` - Card wrapper with hover effects
+- `Grid` - Grid2 wrapper for responsive layouts
+- `Typography` - Typography wrapper with consistent styling
+- `Progress` - Progress wrapper with percentage display
+- `TextField` - Text field wrapper with validation
+- `Select` - Select wrapper with consistent styling
+- `Checkbox` - Checkbox wrapper with proper labeling
+- `Switch` - Switch wrapper with consistent behavior
+
+### 2. Layout Components
+- `Container` - Page container with proper spacing
+- `Stack` - Stack layout component
+- `Box` - Box layout component
+- `Paper` - Paper surface component
+- `Divider` - Divider component
+
+### 3. Feedback Components
+- `Alert` - Alert component for notifications
+- `Snackbar` - Snackbar for temporary messages
+- `Dialog` - Dialog for modals
+- `Drawer` - Drawer for navigation
+- `Tooltip` - Tooltip for additional information
+
+### 4. Navigation Components
+- `AppBar` - Application bar
+- `BottomNavigation` - Bottom navigation
+- `Breadcrumbs` - Breadcrumb navigation
+- `Pagination` - Pagination component
+- `Tabs` - Tab navigation
+
+## Best Practices
+
+### 1. Component Design
+- **Single Responsibility**: Each component should have one clear purpose
+- **Composition**: Prefer composition over inheritance
+- **Props Interface**: Define clear, typed prop interfaces
+- **Default Props**: Provide sensible defaults for optional props
+- **Error Boundaries**: Wrap components in error boundaries
+
+### 2. Styling
+- **Theme Integration**: Use MUI theme for consistent styling
+- **CSS-in-JS**: Use MUI's sx prop for component-specific styles
+- **Responsive Design**: Use theme breakpoints for responsive behavior
+- **Dark Mode**: Ensure components work in both light and dark themes
+
+### 3. State Management
+- **Local State**: Use useState for component-specific state
+- **Lifted State**: Lift state up when multiple components need it
+- **Context**: Use React Context for deeply nested state
+- **External State**: Use Zustand or TanStack Query for global state
+
+### 4. Performance
+- **Memoization**: Memoize expensive calculations and callbacks
+- **Lazy Loading**: Load components only when needed
+- **Bundle Splitting**: Split code at route boundaries
+- **Image Optimization**: Optimize images for different screen sizes
+
+## Related Rule Files
+- `core-rules.mdc` - Project overview and basic architecture
+- `data-rules.mdc` - Storage, validation, and server actions
+- `theme-rules.mdc` - Theming system and customization
+- `hooks-rules.mdc` - Custom hooks and state management# UI Component Rules
+
+## MUI Component Wrapping Strategy
+
+### 1. Custom Component Wrappers
+Never use MUI components directly in business logic components. Always create wrapper components in `src/components/ui/`.
+
+```typescript
+// ❌ DON'T: Use MUI directly in business components
+import { Button } from '@mui/material';
+
+// ✅ DO: Create wrapper components
+// src/components/ui/Button.tsx
+import { Button as MuiButton, ButtonProps as MuiButtonProps } from '@mui/material';
+
+export interface ButtonProps extends MuiButtonProps {
+  variant?: 'primary' | 'secondary' | 'danger';
+  size?: 'small' | 'medium' | 'large';
+}
+
+export const Button: React.FC<ButtonProps> = ({ 
+  variant = 'primary', 
+  size = 'medium', 
+  ...props 
+}) => {
+  return <MuiButton variant={variant} size={size} {...props} />;
+};
+```
+
+### 2. Component Structure Pattern
+```typescript
+// Component imports
+import React from 'react';
+import { Button } from '@/components/ui/Button';
+import { useShoppingList } from '@/hooks/useShoppingList';
+import { ShoppingList as ShoppingListType } from '@/types/shopping-list';
+
+// Types
+interface ShoppingListProps {
+  listId: string;
+  onUpdate?: (list: ShoppingListType) => void;
+}
+
+// Component
+export const ShoppingList: React.FC<ShoppingListProps> = ({ listId, onUpdate }) => {
+  // Hooks
+  const { list, updateList, isLoading, error } = useShoppingList(listId);
+  
+  // Event handlers
+  const handleItemAdd = React.useCallback((item: ShoppingItem) => {
+    // Implementation with proper error handling
+  }, [updateList]);
+  
+  // Early returns for loading and error states
+  if (isLoading) return <ShoppingListSkeleton />;
+  if (error) return <ErrorBoundary error={error} />;
+  if (!list) return <EmptyState />;
+  
+  // Render
+  return (
+    <div>
+      {/* Component JSX */}
+    </div>
+  );
+};
+```
+
+### 3. Error Handling in Components
+```typescript
+// Always handle errors gracefully with proper error boundaries
+import { ErrorBoundary } from 'react-error-boundary';
+import { useQuery } from '@tanstack/react-query';
+
+const { data, error, isLoading } = useQuery({
+  queryKey: ['shoppingList', listId],
+  queryFn: () => fetchShoppingList(listId),
+  retry: (failureCount, error) => {
+    // Don't retry on 4xx errors
+    if (error.status >= 400 && error.status < 500) return false;
+    return failureCount < 3;
+  },
+  staleTime: 5 * 60 * 1000, // 5 minutes
+});
+
+// Error boundary wrapper
+<ErrorBoundary
+  FallbackComponent={ErrorFallback}
+  onError={(error, errorInfo) => {
+    console.error('Shopping list error:', error, errorInfo);
+    // Send to error reporting service
+  }}
+>
+  {error ? <ErrorState error={error} /> : <ShoppingListContent data={data} />}
+</ErrorBoundary>
+```
+
+### 4. Form Handling Pattern
+```typescript
+// Use React Hook Form with Zod validation and Server Actions
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { createItemAction } from '@/actions/items';
+import { useActionState } from 'react';
+
+const schema = z.object({
+  name: z.string().min(1, 'Name is required').max(100, 'Name too long'),
+  quantity: z.coerce.number().min(1, 'Quantity must be at least 1'),
+  category: z.string().optional(),
+});
+
+type FormData = z.infer<typeof schema>;
+
+export const ItemForm: React.FC = () => {
+  const [state, formAction, isPending] = useActionState(createItemAction, null);
+  
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<FormData>({
+    resolver: zodResolver(schema),
+  });
+  
+  const onSubmit = (data: FormData) => {
+    const formData = new FormData();
+    Object.entries(data).forEach(([key, value]) => {
+      formData.append(key, String(value));
+    });
+    formAction(formData);
+  };
+  
+  // Reset form on success
+  React.useEffect(() => {
+    if (state?.success) {
+      reset();
+    }
+  }, [state?.success, reset]);
+  
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+      {/* Form fields */}
+      {state?.error && <ErrorMessage message={state.error} />}
+    </form>
+  );
+};
+```
+
+## Component Guidelines
+
+### 1. Responsive Design
+- **Mobile-First**: Design for mobile first, then enhance for larger screens
+- **Breakpoints**: Use MUI's breakpoint system (xs, sm, md, lg, xl)
+- **Grid System**: Use MUI Grid2 for responsive layouts
+- **Typography**: Use responsive typography with theme breakpoints
+
+### 2. Accessibility
+- **ARIA Labels**: Always provide proper ARIA labels and descriptions
+- **Keyboard Navigation**: Ensure all interactive elements are keyboard accessible
+- **Color Contrast**: Maintain WCAG AA compliance (4.5:1 ratio)
+- **Screen Reader**: Test with screen readers and semantic HTML
+- **Focus Management**: Implement proper focus management for modals and navigation
+
+### 3. Performance
+- **Memoization**: Use `React.memo`, `useMemo`, and `useCallback` appropriately
+- **Lazy Loading**: Use dynamic imports for route-based code splitting
+- **Image Optimization**: Use Next.js Image component with proper sizing
+- **Bundle Analysis**: Regularly analyze bundle size with @next/bundle-analyzer
+
+### 4. Testing
+- **Unit Tests**: Test individual components with React Testing Library
+- **Integration Tests**: Test component interactions
+- **Visual Testing**: Use Chromatic or similar for visual regression testing
+- **Accessibility Testing**: Test with screen readers and keyboard navigation
+
+## UI Component Library
+
+### 1. Core Components
+- `Button` - Custom button wrapper with variants
+- `Card` - Card wrapper with hover effects
+- `Grid` - Grid2 wrapper for responsive layouts
+- `Typography` - Typography wrapper with consistent styling
+- `Progress` - Progress wrapper with percentage display
+- `TextField` - Text field wrapper with validation
+- `Select` - Select wrapper with consistent styling
+- `Checkbox` - Checkbox wrapper with proper labeling
+- `Switch` - Switch wrapper with consistent behavior
+
+### 2. Layout Components
+- `Container` - Page container with proper spacing
+- `Stack` - Stack layout component
+- `Box` - Box layout component
+- `Paper` - Paper surface component
+- `Divider` - Divider component
+
+### 3. Feedback Components
+- `Alert` - Alert component for notifications
+- `Snackbar` - Snackbar for temporary messages
+- `Dialog` - Dialog for modals
+- `Drawer` - Drawer for navigation
+- `Tooltip` - Tooltip for additional information
+
+### 4. Navigation Components
+- `AppBar` - Application bar
+- `BottomNavigation` - Bottom navigation
+- `Breadcrumbs` - Breadcrumb navigation
+- `Pagination` - Pagination component
+- `Tabs` - Tab navigation
+
+## Best Practices
+
+### 1. Component Design
+- **Single Responsibility**: Each component should have one clear purpose
+- **Composition**: Prefer composition over inheritance
+- **Props Interface**: Define clear, typed prop interfaces
+- **Default Props**: Provide sensible defaults for optional props
+- **Error Boundaries**: Wrap components in error boundaries
+
+### 2. Styling
+- **Theme Integration**: Use MUI theme for consistent styling
+- **CSS-in-JS**: Use MUI's sx prop for component-specific styles
+- **Responsive Design**: Use theme breakpoints for responsive behavior
+- **Dark Mode**: Ensure components work in both light and dark themes
+
+### 3. State Management
+- **Local State**: Use useState for component-specific state
+- **Lifted State**: Lift state up when multiple components need it
+- **Context**: Use React Context for deeply nested state
+- **External State**: Use Zustand or TanStack Query for global state
+
+### 4. Performance
+- **Memoization**: Memoize expensive calculations and callbacks
+- **Lazy Loading**: Load components only when needed
+- **Bundle Splitting**: Split code at route boundaries
+- **Image Optimization**: Optimize images for different screen sizes
+
+## Related Rule Files
+- `core-rules.mdc` - Project overview and basic architecture
+- `data-rules.mdc` - Storage, validation, and server actions
+- `theme-rules.mdc` - Theming system and customization
+- `hooks-rules.mdc` - Custom hooks and state management
