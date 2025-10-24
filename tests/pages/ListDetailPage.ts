@@ -4,6 +4,7 @@ import { TextField } from '../components/ui/TextField';
 import { Button } from '../components/ui/Button';
 import { Checkbox } from '../components/ui/Checkbox';
 import { Dialog } from '../components/ui/Dialog';
+import { EditItemQuantityDialog } from '../components/features/EditItemQuantityDialog';
 
 /**
  * Page object model for the List Detail page
@@ -497,5 +498,59 @@ export class ListDetailPage extends BasePage {
    */
   async expectEditListButton() {
     await expect(this.getEditListButton()).toBeVisible();
+  }
+
+  // Edit Item Quantity Dialog methods
+
+  /**
+   * Open the Edit Item Quantity Dialog for a specific item
+   */
+  async openEditItemDialog(itemName: string) {
+    const item = this.getShoppingListItem(itemName);
+    // Click on the quantity display or edit button to open the dialog
+    await item.quantity.click();
+  }
+
+  /**
+   * Get the Edit Item Quantity Dialog component
+   */
+  getEditItemQuantityDialog() {
+    return new EditItemQuantityDialog(this.page.locator('[role="dialog"]'));
+  }
+
+  /**
+   * Edit an item's quantity and metadata
+   */
+  async editItemQuantity(itemName: string, newQuantity: number) {
+    await this.openEditItemDialog(itemName);
+    const dialog = this.getEditItemQuantityDialog();
+    await dialog.waitForOpen();
+    await dialog.setQuantity(newQuantity);
+    await dialog.save();
+  }
+
+  /**
+   * Add tags to an item
+   */
+  async addTagsToItem(itemName: string, tags: string[]) {
+    await this.openEditItemDialog(itemName);
+    const dialog = this.getEditItemQuantityDialog();
+    await dialog.waitForOpen();
+    await dialog.toggleAdvancedSettings();
+    await dialog.addMultipleNewTags(tags);
+    await dialog.save();
+  }
+
+  /**
+   * Get the tags for a specific item
+   */
+  async getItemTags(itemName: string) {
+    await this.openEditItemDialog(itemName);
+    const dialog = this.getEditItemQuantityDialog();
+    await dialog.waitForOpen();
+    await dialog.toggleAdvancedSettings();
+    const tags = await dialog.getTagChipLabels();
+    await dialog.cancel(); // Close without saving
+    return tags;
   }
 }

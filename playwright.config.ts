@@ -50,42 +50,70 @@ export default defineConfig({
     {
       name: 'setup',
       testMatch: /.*\.setup\.ts/,
+      use: {
+        // Use a single browser for setup to avoid multiple auth state files
+        ...devices['Desktop Chrome'],
+      },
     },
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { 
+        ...devices['Desktop Chrome'],
+        // Use the auth state file created by setup
+        storageState: 'tests/fixtures/auth-state.json',
+      },
       dependencies: ['setup'],
     },
     {
       name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
+      use: { 
+        ...devices['Desktop Firefox'],
+        storageState: 'tests/fixtures/auth-state.json',
+      },
       dependencies: ['setup'],
     },
     {
       name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
+      use: { 
+        ...devices['Desktop Safari'],
+        storageState: 'tests/fixtures/auth-state.json',
+      },
       dependencies: ['setup'],
     },
     /* Test against mobile viewports. */
     {
       name: 'Mobile Chrome',
-      use: { ...devices['Pixel 5'] },
+      use: { 
+        ...devices['Pixel 5'],
+        storageState: 'tests/fixtures/auth-state.json',
+      },
       dependencies: ['setup'],
     },
     {
       name: 'Mobile Safari',
-      use: { ...devices['iPhone 12'] },
+      use: { 
+        ...devices['iPhone 12'],
+        storageState: 'tests/fixtures/auth-state.json',
+      },
       dependencies: ['setup'],
     },
     /* Test against branded browsers. */
     {
       name: 'Microsoft Edge',
-      use: { ...devices['Desktop Edge'], channel: 'msedge' },
+      use: { 
+        ...devices['Desktop Edge'], 
+        channel: 'msedge',
+        storageState: 'tests/fixtures/auth-state.json',
+      },
       dependencies: ['setup'],
     },
     {
       name: 'Google Chrome',
-      use: { ...devices['Desktop Chrome'], channel: 'chrome' },
+      use: { 
+        ...devices['Desktop Chrome'], 
+        channel: 'chrome',
+        storageState: 'tests/fixtures/auth-state.json',
+      },
       dependencies: ['setup'],
     },
   ],

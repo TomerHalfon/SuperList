@@ -55,6 +55,15 @@ export const authenticatedPage = base.extend({
     // Create a new page
     const page = await context.newPage();
     
+    // Verify authentication by navigating to a protected route
+    await page.goto('/');
+    
+    // Check if we're redirected to login (authentication failed)
+    const currentUrl = page.url();
+    if (currentUrl.includes('/login')) {
+      throw new Error('Authentication failed - user was redirected to login page');
+    }
+    
     // Use the page
     await use(page);
     

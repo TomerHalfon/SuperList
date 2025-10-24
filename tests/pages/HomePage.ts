@@ -12,7 +12,7 @@ export class HomePage extends BasePage {
 
   constructor(page: Page) {
     super(page);
-    this.createListButton = new Button(page.getByRole('button', { name: /create.*list/i }));
+    this.createListButton = new Button(page.locator('button[aria-label="Create new shopping list"]'));
   }
 
   /**
