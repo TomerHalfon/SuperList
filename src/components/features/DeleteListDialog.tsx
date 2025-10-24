@@ -45,6 +45,7 @@ export const DeleteListDialog: React.FC<DeleteListDialogProps> = ({
       onClose={onCancel}
       maxWidth="sm"
       fullWidth
+      data-testid="delete-list-dialog"
     >
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <DeleteIcon color="error" />
@@ -66,6 +67,7 @@ export const DeleteListDialog: React.FC<DeleteListDialogProps> = ({
           variant="outlined"
           onClick={onCancel}
           color="inherit"
+          data-testid="delete-list-cancel-button"
         >
           {t('cancel')}
         </Button>
@@ -74,6 +76,7 @@ export const DeleteListDialog: React.FC<DeleteListDialogProps> = ({
           onClick={onConfirm}
           color="error"
           startIcon={<DeleteIcon />}
+          data-testid="delete-list-confirm-button"
         >
           {t('deleteList')}
         </Button>

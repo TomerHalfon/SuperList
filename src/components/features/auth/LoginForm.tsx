@@ -26,10 +26,36 @@ export const LoginForm: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isOAuthLoading, setIsOAuthLoading] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<{
+    email?: string;
+    password?: string;
+  }>({});
+
+  const validateForm = () => {
+    const errors: { email?: string; password?: string } = {};
+    
+    if (!email.trim()) {
+      errors.email = t('emailRequired');
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      errors.email = t('emailInvalid');
+    }
+    
+    if (!password.trim()) {
+      errors.password = t('passwordRequired');
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
+
+    // Validate form
+    if (!validateForm()) {
+      return;
+    }
 
     const formData = new FormData();
     formData.append('email', email);
@@ -82,10 +108,11 @@ export const LoginForm: React.FC = () => {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            required
             fullWidth
             autoComplete="email"
             disabled={isPending || isOAuthLoading}
+            error={!!validationErrors.email}
+            helperText={validationErrors.email}
           />
 
           <TextField
@@ -93,10 +120,11 @@ export const LoginForm: React.FC = () => {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            required
             fullWidth
             autoComplete="current-password"
             disabled={isPending || isOAuthLoading}
+            error={!!validationErrors.password}
+            helperText={validationErrors.password}
           />
 
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -114,10 +142,12 @@ export const LoginForm: React.FC = () => {
             type="submit"
             variant="contained"
             fullWidth
-            disabled={isPending || isOAuthLoading}
+            disabled={isOAuthLoading}
+            loading={isPending}
             size="large"
+            data-testid="sign-in-button"
           >
-            {isPending ? t('signingIn') : t('signIn')}
+            {t('signIn')}
           </Button>
 
           <Divider sx={{ my: 2 }}>OR</Divider>

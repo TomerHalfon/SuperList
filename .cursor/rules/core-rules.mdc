@@ -1,7 +1,6 @@
 ---
-alwaysApply: false
+alwaysApply: true
 ---
-
 # SuperList - Core Architecture Rules
 
 ## Project Overview

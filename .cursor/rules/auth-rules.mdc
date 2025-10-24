@@ -1,7 +1,6 @@
 ---
-alwaysApply: false
+alwaysApply: true
 ---
-
 export async function POST(request: NextRequest) {
   try {
     // Authentication

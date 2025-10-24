@@ -16,7 +16,10 @@
     "signInWithGoogle": "Sign in with Google",
     "redirecting": "Redirecting...",
     "signedInAs": "Signed in as",
-    "mustBeAtLeast6Chars": "Must be at least 6 characters"
+    "mustBeAtLeast6Chars": "Must be at least 6 characters",
+    "emailRequired": "Email is required",
+    "emailInvalid": "Please enter a valid email address",
+    "passwordRequired": "Password is required"
   },
   "validation": {
     "emailRequired": "Email is required",

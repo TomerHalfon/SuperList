@@ -35,6 +35,7 @@ export const ShoppingListCard: React.FC<ShoppingListCardProps> = ({
       <Link href={`/lists/${list.id}`} style={{ textDecoration: 'none' }}>
         <Card 
           hover 
+          data-testid={`shopping-list-card-${list.name}`}
           sx={{
             height: '100%',
             display: 'flex',
@@ -97,6 +98,7 @@ export const ShoppingListCard: React.FC<ShoppingListCardProps> = ({
           <IconButton
             onClick={handleDeleteClick}
             size="small"
+            data-testid="shopping-list-delete-button"
             sx={{
               position: 'absolute',
               top: 8,

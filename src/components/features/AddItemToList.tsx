@@ -108,6 +108,7 @@ export const AddItemToList: React.FC<AddItemToListProps> = ({
 
   return (
     <Box
+      data-testid="add-item-to-list"
       sx={{
         display: 'flex',
         alignItems: 'center',
@@ -151,6 +152,7 @@ export const AddItemToList: React.FC<AddItemToListProps> = ({
           disabled={addItemMutation.isPending}
           onKeyDown={handleKeyPress}
           freeSolo={true}
+          data-testid="add-item-input"
           sx={{
             '& .MuiOutlinedInput-root': {
               border: 'none',

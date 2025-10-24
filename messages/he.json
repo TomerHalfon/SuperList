@@ -16,7 +16,10 @@
     "signInWithGoogle": "התחבר עם Google",
     "redirecting": "מפנה...",
     "signedInAs": "מחובר כ",
-    "mustBeAtLeast6Chars": "חייב להיות לפחות 6 תווים"
+    "mustBeAtLeast6Chars": "חייב להיות לפחות 6 תווים",
+    "emailRequired": "אימייל נדרש",
+    "emailInvalid": "אנא הזן כתובת אימייל תקינה",
+    "passwordRequired": "סיסמה נדרשת"
   },
   "validation": {
     "emailRequired": "אימייל נדרש",

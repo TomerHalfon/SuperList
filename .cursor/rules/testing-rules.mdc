@@ -1,0 +1,367 @@
+---
+alwaysApply: false
+---
+# Testing Rules - Playwright E2E Testing
+
+## Overview
+
+This document outlines the testing strategy and patterns for SuperList using Playwright for end-to-end testing. The approach focuses on component models, page object models, and testable UI patterns to ensure maintainable and reliable tests.
+
+## Testing Architecture
+
+### Component Models
+- **One component model per UI component** - Each component in `src/components/ui/` and `src/components/features/` has a corresponding Playwright component model
+- **Export class with methods for all user interactions** - Component models expose methods for all possible user actions
+- **Use data-testid attributes sparingly** - Prefer semantic locators (getByRole, getByLabel, getByText) over test IDs
+- **Include helper methods for assertions** - Component models provide assertion helpers for common checks
+
+### Page Object Models
+- **One page model per route/page** - Each major route has a corresponding page object model
+- **Compose using component models** - Page models use component models to build higher-level interactions
+- **Include navigation methods** - Page models handle navigation between pages
+- **Include page-specific assertions** - Page models provide page-level assertion helpers
+
+## Testable UI Guidelines
+
+### Locator Strategy
+1. **Prefer semantic HTML and ARIA roles** over test IDs
+2. **Add data-testid only when semantic locators are insufficient**
+3. **Naming convention**: `data-testid="feature-element-action"` (e.g., "list-delete-button")
+4. **Always include accessible labels and roles** for better locator stability
+5. **Update existing components** to include data-testid where needed
+
+### Component Updates Required
+- `src/components/features/ShoppingListCard.tsx` - add to delete button
+- `src/components/features/AddItemToList.tsx` - add to form elements
+- `src/components/features/auth/LoginForm.tsx` - verify accessible labels
+- `src/components/ui/Dialog.tsx` - add to close button
+
+### Guidelines for data-testid Additions
+- Only add when getByRole/getByLabel/getByText insufficient
+- Use kebab-case naming: "shopping-list-delete-button"
+- Include semantic HTML alongside (don't replace)
+- Document in component props interface
+
+## Test Writing Standards
+
+### Test Structure
+- **Test user-visible behavior, not implementation details**
+- **Each test must be completely isolated** (use fixtures for setup)
+- **Use descriptive test names**: "should allow user to create a new shopping list"
+- **Follow AAA pattern**: Arrange, Act, Assert
+- **Use beforeEach for common setup**, avoid test interdependencies
+- **Group related tests with describe blocks**
+
+### Example Test Structure
+```typescript
+import { test, expect } from '@playwright/test';
+import { HomePage } from '../pages/HomePage';
+import { authenticatedPage } from '../fixtures/auth.fixture';
+
+test.describe('Shopping List Management', () => {
+  test('should allow user to create a new shopping list', async ({ page }) => {
+    // Arrange
+    const homePage = new HomePage(page);
+    await homePage.goto();
+    
+    // Act
+    await homePage.createNewList('Test List');
+    
+    // Assert
+    await expect(homePage.getListCard('Test List')).toBeVisible();
+  });
+});
+```
+
+## Authentication in Tests
+
+### Storage State Strategy
+- **Store authenticated session state** using Playwright's storage state
+- **Create auth fixture** that logs in once and reuses session
+- **Separate tests requiring/not requiring authentication**
+- **Use test user accounts** from environment variables
+
+### Authentication Fixture
+```typescript
+// tests/fixtures/auth.fixture.ts
+import { test as base } from '@playwright/test';
+
+export const authenticatedPage = base.extend({
+  page: async ({ browser }, use) => {
+    const context = await browser.newContext({
+      storageState: 'tests/fixtures/auth-state.json'
+    });
+    const page = await context.newPage();
+    await use(page);
+  },
+});
+```
+
+### Test User Setup
+- Create test users in separate test Supabase project
+- Use email/password authentication (no Google OAuth in tests)
+- Store credentials in environment variables
+- Document test user setup process
+
+## Internationalization Testing
+
+### Primary Test Suite
+- **Primary test suite runs in English** - All main tests use English locale
+- **Create dedicated i18n/RTL test suite** for Hebrew
+- **Test critical flows in both locales** to verify RTL layout
+- **Use locale parameter in fixtures** for language-specific tests
+
+### RTL Testing Strategy
+```typescript
+test.describe('RTL Layout Tests', () => {
+  test('should display Hebrew text correctly', async ({ page }) => {
+    await page.goto('/?locale=he');
+    await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+  });
+});
+```
+
+## Test Data Management
+
+### Supabase Test Project
+- **Use separate test Supabase project** to avoid polluting dev data
+- **Create fixtures for common test data patterns**
+- **Reset test data between test suites** (beforeAll/afterAll hooks)
+- **Manual cleanup using dedicated cleanup utilities**
+- **Document test user credentials and data setup**
+
+### Test Data Fixtures
+```typescript
+// tests/fixtures/test-data.fixture.ts
+export class TestDataFactory {
+  static createShoppingList(name: string, items: string[] = []) {
+    return {
+      name: `e2e_test_${name}`,
+      items: items.map(item => ({
+        name: item,
+        collected: false,
+        quantity: 1
+      }))
+    };
+  }
+  
+  static async cleanupTestData() {
+    // Cleanup logic for test data
+  }
+}
+```
+
+### Data Isolation
+- **Test suite isolation**: Reset data between describe blocks
+- **Test isolation**: Manual cleanup using hooks/fixtures
+- **Prefix test data**: Use "e2e_test_" prefix for easy identification
+- **Cleanup utilities**: Dedicated functions for data cleanup
+
+## Best Practices
+
+### Playwright Specific
+- **Use Playwright's auto-waiting** (don't add manual waits)
+- **Chain and filter locators** for precision
+- **Avoid testing third-party integrations** (mock network responses)
+- **Use trace viewer for debugging failures**
+- **Keep tests fast** (avoid unnecessary navigation)
+- **Run tests in parallel** when possible
+
+### Test Organization
+- **Group related tests** in describe blocks
+- **Use meaningful test names** that describe the user behavior
+- **Keep tests independent** - no test should depend on another
+- **Use fixtures for common setup** and teardown
+- **Document complex test scenarios** with comments
+
+### Error Handling
+- **Test both success and error cases**
+- **Verify error messages** are user-friendly
+- **Test loading states** and transitions
+- **Handle network failures** gracefully in tests
+
+## Component Model Examples
+
+### UI Component Model
+```typescript
+// tests/components/ui/Button.ts
+import { BaseComponent } from './BaseComponent';
+import { Locator } from '@playwright/test';
+
+export class Button extends BaseComponent {
+  constructor(page: Locator) {
+    super(page);
+  }
+  
+  async click() {
+    await this.locator.click();
+  }
+  
+  async getText() {
+    return await this.locator.textContent();
+  }
+  
+  async isDisabled() {
+    return await this.locator.isDisabled();
+  }
+  
+  async isVisible() {
+    return await this.locator.isVisible();
+  }
+}
+```
+
+### Feature Component Model
+```typescript
+// tests/components/features/LoginForm.ts
+import { BaseComponent } from '../ui/BaseComponent';
+import { TextField } from '../ui/TextField';
+import { Button } from '../ui/Button';
+
+export class LoginForm extends BaseComponent {
+  private emailField: TextField;
+  private passwordField: TextField;
+  private submitButton: Button;
+  
+  constructor(page: Locator) {
+    super(page);
+    this.emailField = new TextField(page.getByLabel('Email'));
+    this.passwordField = new TextField(page.getByLabel('Password'));
+    this.submitButton = new Button(page.getByRole('button', { name: 'Sign In' }));
+  }
+  
+  async fillEmail(email: string) {
+    await this.emailField.fill(email);
+  }
+  
+  async fillPassword(password: string) {
+    await this.passwordField.fill(password);
+  }
+  
+  async submit() {
+    await this.submitButton.click();
+  }
+  
+  async getError() {
+    return await this.locator.getByRole('alert').textContent();
+  }
+}
+```
+
+## Page Object Model Examples
+
+### Base Page Model
+```typescript
+// tests/pages/BasePage.ts
+import { Page } from '@playwright/test';
+
+export abstract class BasePage {
+  constructor(protected page: Page) {}
+  
+  async goto(url?: string) {
+    await this.page.goto(url || this.getUrl());
+  }
+  
+  async getTitle() {
+    return await this.page.title();
+  }
+  
+  async getUrl() {
+    return this.page.url();
+  }
+  
+  async waitForLoad() {
+    await this.page.waitForLoadState('networkidle');
+  }
+  
+  abstract getUrl(): string;
+}
+```
+
+### Specific Page Model
+```typescript
+// tests/pages/LoginPage.ts
+import { BasePage } from './BasePage';
+import { LoginForm } from '../components/features/LoginForm';
+
+export class LoginPage extends BasePage {
+  private loginForm: LoginForm;
+  
+  constructor(page: Page) {
+    super(page);
+    this.loginForm = new LoginForm(page.locator('form'));
+  }
+  
+  getUrl() {
+    return '/login';
+  }
+  
+  async login(email: string, password: string) {
+    await this.loginForm.fillEmail(email);
+    await this.loginForm.fillPassword(password);
+    await this.loginForm.submit();
+  }
+  
+  async getErrorMessage() {
+    return await this.loginForm.getError();
+  }
+}
+```
+
+## CI/CD Considerations
+
+### GitHub Actions Setup
+```yaml
+# .github/workflows/e2e.yml
+name: E2E Tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - run: npm ci
+      - run: npx playwright install --with-deps
+      - run: npm run test:e2e
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.TEST_SUPABASE_ANON_KEY }}
+```
+
+### Environment Configuration
+- **Separate test Supabase project** for CI environment
+- **Environment variable configuration** for CI secrets
+- **Parallel test execution** strategy
+- **Artifact retention** for failed tests
+- **Test report generation** and storage
+
+## File Organization
+
+### Test Directory Structure
+```
+tests/
+├── e2e/                    # Test specifications
+│   ├── auth/              # Authentication tests
+│   ├── lists/             # Shopping list tests
+│   └── items/             # Item management tests
+├── fixtures/              # Test fixtures and utilities
+│   ├── auth.fixture.ts    # Authentication fixture
+│   └── test-data.fixture.ts # Test data utilities
+├── components/            # Component models
+│   ├── ui/               # UI component models
+│   └── features/         # Feature component models
+└── pages/                # Page object models
+    ├── BasePage.ts       # Base page class
+    ├── LoginPage.ts      # Login page model
+    ├── HomePage.ts       # Home page model
+    └── ListDetailPage.ts # List detail page model
+```
+
+## Related Rule Files
+- `core-rules.mdc` - Project overview and basic architecture
+- `ui-rules.mdc` - MUI patterns and component guidelines
+- `data-rules.mdc` - Storage, validation, and server actions
+- `auth-rules.mdc` - Authentication and security patterns

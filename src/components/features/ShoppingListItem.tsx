@@ -47,6 +47,7 @@ export const ShoppingListItem: React.FC<ShoppingListItemProps> = ({
 
   return (
     <Box
+      data-testid={`shopping-list-item-${item.name}`}
       sx={{
         display: 'flex',
         alignItems: 'center',
@@ -115,6 +116,7 @@ export const ShoppingListItem: React.FC<ShoppingListItemProps> = ({
           size="small"
           onClick={handleDecrement}
           disabled={quantity <= 1}
+          data-testid="decrement-quantity-button"
           sx={{ 
             opacity: quantity <= 1 ? 0.3 : 1,
           }}
@@ -139,6 +141,7 @@ export const ShoppingListItem: React.FC<ShoppingListItemProps> = ({
           size="small"
           onClick={handleIncrement}
           disabled={quantity >= 999}
+          data-testid="increment-quantity-button"
           sx={{ 
             opacity: quantity >= 999 ? 0.3 : 1,
           }}
@@ -149,6 +152,7 @@ export const ShoppingListItem: React.FC<ShoppingListItemProps> = ({
         <IconButton
           size="small"
           onClick={handleEditClick}
+          data-testid="edit-item-button"
           sx={{ 
             ml: 0.5,
           }}

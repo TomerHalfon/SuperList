@@ -255,6 +255,78 @@ NEXT_PUBLIC_APP_URL=https://your-domain.com
 - Run database migrations: `supabase db push`
 - Or manually run SQL files in Supabase SQL Editor
 
+## Testing
+
+### E2E Testing with Playwright
+
+This project includes comprehensive end-to-end testing using Playwright. The testing setup follows best practices with component models, page object models, and testable UI patterns.
+
+#### Test Structure
+
+```
+tests/
+├── e2e/                    # Test specifications
+│   ├── auth/              # Authentication tests
+│   ├── lists/             # Shopping list tests
+│   └── items/             # Item management tests
+├── fixtures/              # Test fixtures and utilities
+├── components/            # Component models
+└── pages/                # Page object models
+```
+
+#### Running Tests
+
+```bash
+# Run all E2E tests
+npm run test:e2e
+
+# Run tests with UI
+npm run test:e2e:ui
+
+# Run tests in debug mode
+npm run test:e2e:debug
+
+# Run tests in headed mode (see browser)
+npm run test:e2e:headed
+
+# Show test report
+npm run test:e2e:report
+```
+
+#### Test Environment Setup
+
+1. **Create Test Supabase Project**: Create a separate Supabase project for testing
+2. **Configure Environment Variables**: Copy `.env.test.example` to `.env.test.local` and fill in your test credentials
+3. **Set Up Test Users**: Create test user accounts in your test Supabase project
+4. **Run Tests**: Execute the test commands above
+
+#### Test Data Management
+
+- Tests use a separate test Supabase project to avoid polluting development data
+- Test data is prefixed with `e2e_test_` for easy identification
+- Automatic cleanup utilities remove test data after each test
+- Factory functions create consistent test data patterns
+
+#### Writing Tests
+
+The testing framework follows these patterns:
+
+- **Component Models**: One model per UI component with methods for all interactions
+- **Page Object Models**: One model per route composing component models
+- **Testable UI**: Components include `data-testid` attributes where semantic locators are insufficient
+- **Authentication Fixtures**: Reusable authentication state across tests
+- **Test Data Factories**: Consistent test data creation and cleanup
+
+#### Testing Guidelines
+
+- Test user-visible behavior, not implementation details
+- Use descriptive test names that explain the user scenario
+- Follow AAA pattern: Arrange, Act, Assert
+- Keep tests independent and isolated
+- Use fixtures for common setup and teardown
+
+For detailed testing guidelines, see `.cursor/rules/testing-rules.mdc`.
+
 ## Learn More
 
 - [Next.js Documentation](https://nextjs.org/docs)

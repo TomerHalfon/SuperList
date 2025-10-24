@@ -82,6 +82,15 @@ This project uses a modular rules system to keep documentation focused and manag
 - Streaming and progressive loading
 - Performance monitoring
 
+### 🧪 Testing Rules
+**File:** `testing-rules.mdc`
+- Playwright E2E test patterns
+- Component and page object models
+- Testable UI guidelines and data-testid conventions
+- Test isolation and authentication strategies
+- Test data management with Supabase
+- Internationalization testing approach
+
 ## Quick Reference
 
 ### Essential Patterns
@@ -230,6 +239,15 @@ This project uses a modular rules system to keep documentation focused and manag
 - Caching strategies
 - Streaming and progressive loading
 - Performance monitoring
+
+### 🧪 Testing Rules
+**File:** `testing-rules.mdc`
+- Playwright E2E test patterns
+- Component and page object models
+- Testable UI guidelines and data-testid conventions
+- Test isolation and authentication strategies
+- Test data management with Supabase
+- Internationalization testing approach
 
 ## Quick Reference
 
