@@ -11,6 +11,7 @@ import { AuthGuard } from '@/components/features/auth/AuthGuard';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { Container } from '@/components/ui/Container';
 import { ClientLayout } from '@/components/layout/ClientLayout';
+import { ConditionalAppHeader } from '@/components/layout/ConditionalAppHeader';
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -45,9 +46,7 @@ export default async function RootLayout({
                 <MuiThemeProvider>
                   <SnackbarProvider>
                     <AuthGuard>
-                      <Container maxWidth="lg" sx={{ py: 4 }}>
-                        <AppHeader />
-                      </Container>
+                      <ConditionalAppHeader />
                       {children}
                     </AuthGuard>
                   </SnackbarProvider>
