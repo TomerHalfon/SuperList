@@ -1,7 +1,6 @@
 ---
-alwaysApply: false
+alwaysApply: true
 ---
-
 # Custom Hooks & State Management Rules
 
 ## React Query (TanStack Query v5) Patterns

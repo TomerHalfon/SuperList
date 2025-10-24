@@ -1,4 +1,579 @@
+---
+alwaysApply: true
+---
+
 # Performance & Optimization Rules
+
+## Performance Optimization Strategies
+
+### 1. Code Splitting and Lazy Loading
+```typescript
+// Route-based code splitting
+import dynamic from 'next/dynamic';
+
+// Lazy load heavy components
+const ShoppingListEditor = dynamic(() => import('@/components/features/ShoppingListEditor'), {
+  loading: () => <ShoppingListEditorSkeleton />,
+  ssr: false, // Only load on client if needed
+});
+
+// Lazy load with custom loading component
+const ThemeSwitcher = dynamic(() => import('@/components/features/ThemeSwitcher'), {
+  loading: () => <CircularProgress size={24} />,
+});
+
+// Conditional lazy loading
+const AdminPanel = dynamic(() => import('@/components/admin/AdminPanel'), {
+  loading: () => <AdminPanelSkeleton />,
+});
+
+// Usage in components
+export const Dashboard: React.FC = () => {
+  const { user } = useAuth();
+  
+  return (
+    <div>
+      <ShoppingListEditor />
+      <ThemeSwitcher />
+      {user?.role === 'admin' && <AdminPanel />}
+    </div>
+  );
+};
+```
+
+### 2. Image Optimization
+```typescript
+// Using Next.js Image component
+import Image from 'next/image';
+
+export const ItemCard: React.FC<{ item: Item }> = ({ item }) => {
+  return (
+    <Card>
+      <CardMedia>
+        <Image
+          src={item.imageUrl}
+          alt={item.name}
+          width={300}
+          height={200}
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          placeholder="blur"
+          blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
+          priority={false} // Only set to true for above-the-fold images
+        />
+      </CardMedia>
+    </Card>
+  );
+};
+
+// Responsive images with different sizes
+export const HeroImage: React.FC = () => {
+  return (
+    <Image
+      src="/hero-image.jpg"
+      alt="Shopping List Hero"
+      width={1200}
+      height={600}
+      sizes="100vw"
+      priority={true} // Above the fold
+      quality={85} // Optimize quality vs file size
+    />
+  );
+};
+```
+
+### 3. Memoization Patterns
+```typescript
+// Component memoization
+export const ShoppingListCard = React.memo<ShoppingListCardProps>(({ list, onUpdate }) => {
+  const handleToggle = useCallback((itemId: string) => {
+    onUpdate(list.id, { itemId, collected: !list.items.find(i => i.itemId === itemId)?.collected });
+  }, [list.id, list.items, onUpdate]);
+
+  const completionPercentage = useMemo(() => {
+    const completed = list.items.filter(item => item.collected).length;
+    return Math.round((completed / list.items.length) * 100);
+  }, [list.items]);
+
+  return (
+    <Card>
+      <CardContent>
+        <Typography variant="h6">{list.name}</Typography>
+        <LinearProgress value={completionPercentage} />
+        <Typography variant="body2">
+          {completionPercentage}% complete
+        </Typography>
+      </CardContent>
+    </Card>
+  );
+}, (prevProps, nextProps) => {
+  // Custom comparison function
+  return (
+    prevProps.list.id === nextProps.list.id &&
+    prevProps.list.updatedAt === nextProps.list.updatedAt &&
+    prevProps.onUpdate === nextProps.onUpdate
+  );
+});
+
+// Expensive calculation memoization
+export const useExpensiveCalculation = (data: ComplexData[]) => {
+  return useMemo(() => {
+    return data.reduce((acc, item) => {
+      // Expensive calculation here
+      return acc + processComplexData(item);
+    }, 0);
+  }, [data]);
+};
+
+// Callback memoization
+export const useOptimizedCallbacks = (listId: string) => {
+  const toggleItem = useCallback((itemId: string) => {
+    // Toggle logic
+  }, [listId]);
+
+  const addItem = useCallback((item: Item) => {
+    // Add logic
+  }, [listId]);
+
+  const removeItem = useCallback((itemId: string) => {
+    // Remove logic
+  }, [listId]);
+
+  return { toggleItem, addItem, removeItem };
+};
+```
+
+### 4. Bundle Analysis and Optimization
+```typescript
+// next.config.js
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+});
+
+module.exports = withBundleAnalyzer({
+  // Bundle optimization
+  experimental: {
+    optimizeCss: true,
+    optimizePackageImports: ['@mui/material', '@mui/icons-material'],
+  },
+  
+  // Tree shaking optimization
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+      };
+    }
+    
+    return config;
+  },
+  
+  // Image optimization
+  images: {
+    formats: ['image/webp', 'image/avif'],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+  },
+});
+
+// Package.json scripts
+{
+  "scripts": {
+    "analyze": "ANALYZE=true npm run build",
+    "analyze:server": "BUNDLE_ANALYZE=server npm run build",
+    "analyze:browser": "BUNDLE_ANALYZE=browser npm run build"
+  }
+}
+```
+
+### 5. Caching Strategies
+```typescript
+// Next.js caching with unstable_cache
+import { unstable_cache } from 'next/cache';
+import { revalidateTag } from 'next/cache';
+
+export const getCachedShoppingLists = unstable_cache(
+  async (userId: string) => {
+    return await fetchShoppingLists(userId);
+  },
+  ['shopping-lists'],
+  {
+    tags: [`shopping-lists-${userId}`],
+    revalidate: 300, // 5 minutes
+  }
+);
+
+// Cache invalidation helper
+export async function revalidateShoppingLists(userId: string) {
+  revalidateTag(`shopping-lists-${userId}`);
+}
+
+// Usage in Server Component with Suspense
+export default async function ShoppingListsPage() {
+  const user = await validateUser();
+  
+  return (
+    <Suspense fallback={<ShoppingListsSkeleton />}>
+      <ShoppingListsContent userId={user.id} />
+    </Suspense>
+  );
+}
+
+async function ShoppingListsContent({ userId }: { userId: string }) {
+  const lists = await getCachedShoppingLists(userId);
+  return <ShoppingListsList lists={lists} />;
+}
+
+// Client-side caching with React Query
+export function useCachedShoppingLists(userId: string) {
+  return useQuery({
+    queryKey: ['shopping-lists', userId],
+    queryFn: () => fetchShoppingLists(userId),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+}
+```
+
+### 6. Streaming and Progressive Loading
+```typescript
+// Streaming with Suspense boundaries
+export default function ShoppingListPage() {
+  return (
+    <div>
+      <Suspense fallback={<HeaderSkeleton />}>
+        <ShoppingListHeader />
+      </Suspense>
+      
+      <Suspense fallback={<ListSkeleton />}>
+        <ShoppingListContent />
+      </Suspense>
+      
+      <Suspense fallback={<SuggestionsSkeleton />}>
+        <ItemSuggestions />
+      </Suspense>
+    </div>
+  );
+}
+
+// Progressive loading with loading states
+export const ShoppingListContent: React.FC = () => {
+  const { data: list, isLoading } = useList(listId);
+  const { data: items, isLoading: itemsLoading } = useItems();
+  
+  if (isLoading) {
+    return <ShoppingListSkeleton />;
+  }
+  
+  return (
+    <div>
+      <ShoppingListHeader list={list} />
+      
+      {itemsLoading ? (
+        <ItemsSkeleton />
+      ) : (
+        <ItemsList items={items} />
+      )}
+    </div>
+  );
+};
+
+// Error boundaries for graceful degradation
+export const ShoppingListWithErrorBoundary: React.FC = () => {
+  return (
+    <ErrorBoundary
+      FallbackComponent={ShoppingListErrorFallback}
+      onError={(error, errorInfo) => {
+        console.error('Shopping list error:', error, errorInfo);
+        // Send to error reporting service
+      }}
+    >
+      <ShoppingListContent />
+    </ErrorBoundary>
+  );
+};
+```
+
+### 7. Database and API Optimization
+```typescript
+// Database query optimization
+export class OptimizedItemRepository implements IItemRepository {
+  async search(query: string): Promise<Item[]> {
+    // Use database indexes and limit results
+    const { data, error } = await this.supabase
+      .from('items')
+      .select('id, name, emoji, tags')
+      .ilike('name', `%${query}%`)
+      .limit(50) // Limit results for performance
+      .order('name');
+
+    if (error) throw new StorageError(`Search failed: ${error.message}`);
+    return data || [];
+  }
+
+  async getByTag(tag: string): Promise<Item[]> {
+    // Use proper indexing and limit results
+    const { data, error } = await this.supabase
+      .from('items')
+      .select('*')
+      .contains('tags', [tag])
+      .limit(100)
+      .order('name');
+
+    if (error) throw new StorageError(`Tag search failed: ${error.message}`);
+    return data || [];
+  }
+}
+
+// API route optimization
+export async function GET(request: NextRequest) {
+  try {
+    // Add caching headers
+    const response = NextResponse.json(data);
+    
+    response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+    response.headers.set('CDN-Cache-Control', 'public, s-maxage=300');
+    
+    return response;
+  } catch (error) {
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+```
+
+### 8. Virtual Scrolling for Large Lists
+```typescript
+// Virtual scrolling for large item lists
+import { FixedSizeList as List } from 'react-window';
+
+export const VirtualizedItemList: React.FC<{ items: Item[] }> = ({ items }) => {
+  const Row = ({ index, style }: { index: number; style: React.CSSProperties }) => (
+    <div style={style}>
+      <ItemCard item={items[index]} />
+    </div>
+  );
+
+  return (
+    <List
+      height={600}
+      itemCount={items.length}
+      itemSize={80}
+      width="100%"
+    >
+      {Row}
+    </List>
+  );
+};
+
+// Dynamic height virtual scrolling
+import { VariableSizeList as List } from 'react-window';
+
+export const DynamicVirtualizedList: React.FC<{ items: Item[] }> = ({ items }) => {
+  const getItemSize = (index: number) => {
+    const item = items[index];
+    // Calculate height based on content
+    return item.description ? 120 : 80;
+  };
+
+  const Row = ({ index, style }: { index: number; style: React.CSSProperties }) => (
+    <div style={style}>
+      <ItemCard item={items[index]} />
+    </div>
+  );
+
+  return (
+    <List
+      height={600}
+      itemCount={items.length}
+      itemSize={getItemSize}
+      width="100%"
+    >
+      {Row}
+    </List>
+  );
+};
+```
+
+### 9. Performance Monitoring
+```typescript
+// Performance monitoring with Web Vitals
+import { getCLS, getFID, getFCP, getLCP, getTTFB } from 'web-vitals';
+
+function sendToAnalytics(metric: any) {
+  // Send to your analytics service
+  console.log(metric);
+}
+
+// Measure Core Web Vitals
+getCLS(sendToAnalytics);
+getFID(sendToAnalytics);
+getFCP(sendToAnalytics);
+getLCP(sendToAnalytics);
+getTTFB(sendToAnalytics);
+
+// Custom performance monitoring
+export const usePerformanceMonitor = () => {
+  useEffect(() => {
+    const observer = new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        if (entry.entryType === 'measure') {
+          console.log(`${entry.name}: ${entry.duration}ms`);
+        }
+      }
+    });
+    
+    observer.observe({ entryTypes: ['measure'] });
+    
+    return () => observer.disconnect();
+  }, []);
+};
+
+// Component performance monitoring
+export const withPerformanceMonitoring = <P extends object>(
+  Component: React.ComponentType<P>
+) => {
+  return React.memo((props: P) => {
+    const startTime = performance.now();
+    
+    useEffect(() => {
+      const endTime = performance.now();
+      performance.mark(`${Component.name}-render-end`);
+      performance.measure(
+        `${Component.name}-render`,
+        `${Component.name}-render-start`,
+        `${Component.name}-render-end`
+      );
+    });
+    
+    performance.mark(`${Component.name}-render-start`);
+    
+    return <Component {...props} />;
+  });
+};
+```
+
+### 10. Memory Management
+```typescript
+// Proper cleanup in useEffect
+export const useDataSubscription = (listId: string) => {
+  useEffect(() => {
+    const subscription = supabase
+      .channel(`list-${listId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'shopping_lists',
+        filter: `id=eq.${listId}`,
+      }, (payload) => {
+        // Handle real-time updates
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [listId]);
+};
+
+// Debounced search to prevent excessive API calls
+export const useDebouncedSearch = (query: string, delay: number = 300) => {
+  const [debouncedQuery, setDebouncedQuery] = useState(query);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [query, delay]);
+
+  return debouncedQuery;
+};
+
+// Cleanup event listeners
+export const useWindowResize = (callback: (width: number, height: number) => void) => {
+  useEffect(() => {
+    const handleResize = () => {
+      callback(window.innerWidth, window.innerHeight);
+    };
+
+    window.addEventListener('resize', handleResize);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [callback]);
+};
+```
+
+## Best Practices
+
+### 1. General Performance
+- **Use React.memo** for components that receive stable props
+- **Use useMemo** for expensive calculations
+- **Use useCallback** for stable function references
+- **Implement proper loading states** to improve perceived performance
+- **Use Suspense boundaries** for progressive loading
+- **Optimize bundle size** with code splitting and tree shaking
+- **Use proper caching strategies** for both client and server
+- **Monitor Core Web Vitals** for performance metrics
+- **Implement error boundaries** for graceful degradation
+- **Use virtual scrolling** for large lists
+- **Optimize images** with Next.js Image component
+- **Use proper database indexing** for query performance
+- **Implement proper cleanup** in useEffect hooks
+
+### 2. Bundle Optimization
+- **Analyze bundle size** regularly with @next/bundle-analyzer
+- **Use dynamic imports** for route-based code splitting
+- **Optimize package imports** to avoid importing entire libraries
+- **Use tree shaking** to eliminate dead code
+- **Implement proper caching** for static assets
+- **Use CDN** for static assets in production
+- **Optimize fonts** with next/font
+- **Use proper image formats** (WebP, AVIF) for better compression
+
+### 3. Database Performance
+- **Use proper indexing** for frequently queried fields
+- **Limit query results** to prevent large data transfers
+- **Use database connection pooling** for better resource management
+- **Implement proper caching** at the database level
+- **Use prepared statements** to prevent SQL injection and improve performance
+- **Optimize queries** to avoid N+1 problems
+- **Use database views** for complex queries
+- **Implement proper pagination** for large datasets
+
+### 4. API Performance
+- **Use proper HTTP caching headers** for API responses
+- **Implement rate limiting** to prevent abuse
+- **Use compression** (gzip, brotli) for API responses
+- **Implement proper error handling** without exposing internals
+- **Use database transactions** for multi-step operations
+- **Implement proper logging** for performance monitoring
+- **Use CDN** for API responses when appropriate
+- **Implement proper authentication** to prevent unauthorized access
+
+### 5. Client-Side Performance
+- **Use proper state management** to avoid unnecessary re-renders
+- **Implement proper error boundaries** for better user experience
+- **Use proper loading states** to improve perceived performance
+- **Implement proper cleanup** in useEffect hooks
+- **Use proper event handling** to prevent memory leaks
+- **Implement proper debouncing** for search and input operations
+- **Use proper memoization** for expensive calculations
+- **Implement proper lazy loading** for components and routes
+
+## Related Rule Files
+- `core-rules.mdc` - Project overview and basic architecture
+- `ui-rules.mdc` - MUI patterns and component guidelines
+- `hooks-rules.mdc` - Custom hooks and state management
+- `data-rules.mdc` - Storage, validation, and server actions# Performance & Optimization Rules
 
 ## Performance Optimization Strategies
 

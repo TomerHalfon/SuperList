@@ -1,7 +1,6 @@
 ---
-alwaysApply: false
+alwaysApply: true
 ---
-
 # Data Management Rules
 
 ## Storage Abstraction Layer (Repository Pattern)

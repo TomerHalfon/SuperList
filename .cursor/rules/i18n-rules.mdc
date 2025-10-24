@@ -1,4 +1,530 @@
+---
+alwaysApply: true
+---
+
 # Internationalization & RTL Rules
+
+## Internationalization (i18n) with next-intl
+
+### 1. Configuration and Setup
+```typescript
+// src/i18n.ts
+import { getRequestConfig } from 'next-intl/server';
+import { headers } from 'next/headers';
+
+export const locales = ['en', 'he'] as const;
+export type Locale = (typeof locales)[number];
+
+export default getRequestConfig(async ({ locale }) => {
+  // Get the locale from the cookie if available
+  const headersList = await headers();
+  const cookieHeader = headersList.get('cookie');
+  let cookieLocale: string | null = null;
+  
+  if (cookieHeader) {
+    const localeMatch = cookieHeader.match(/locale=([^;]+)/);
+    if (localeMatch) {
+      cookieLocale = localeMatch[1];
+    }
+  }
+
+  // Use cookie locale if valid, otherwise use the provided locale
+  const validLocale: Locale = (cookieLocale && locales.includes(cookieLocale as Locale)) 
+    ? (cookieLocale as Locale) 
+    : (locales.includes(locale as any) ? (locale as Locale) : 'en');
+
+  return {
+    locale: validLocale,
+    messages: (await import(`../messages/${validLocale}.json`)).default,
+    timeZone: 'UTC',
+    now: new Date(),
+  };
+});
+```
+
+### 2. Locale Detection and Cookie Management
+```typescript
+// src/lib/i18n/request.ts
+import { headers } from 'next/headers';
+import { NextRequest } from 'next/server';
+import { locales, type Locale } from '@/i18n';
+
+export function getLocale(request: NextRequest): Locale {
+  // 1. Check cookie first (user preference)
+  const cookieLocale = request.cookies.get('locale')?.value;
+  if (cookieLocale && locales.includes(cookieLocale as Locale)) {
+    return cookieLocale as Locale;
+  }
+
+  // 2. Check Accept-Language header
+  const acceptLanguage = request.headers.get('accept-language');
+  if (acceptLanguage) {
+    const preferredLocale = getPreferredLocale(acceptLanguage);
+    if (preferredLocale) {
+      return preferredLocale;
+    }
+  }
+
+  // 3. Default to English
+  return 'en';
+}
+
+function getPreferredLocale(acceptLanguage: string): Locale | null {
+  const languages = acceptLanguage
+    .split(',')
+    .map(lang => lang.split(';')[0].trim())
+    .map(lang => lang.split('-')[0]); // Extract language code
+
+  for (const lang of languages) {
+    if (locales.includes(lang as Locale)) {
+      return lang as Locale;
+    }
+  }
+  
+  return null;
+}
+```
+
+### 3. Middleware Integration
+```typescript
+// middleware.ts
+import createIntlMiddleware from 'next-intl/middleware';
+import { locales, type Locale } from '@/i18n';
+import { getLocale, setLocaleCookie } from '@/lib/i18n/request';
+
+const intlMiddleware = createIntlMiddleware({
+  locales,
+  defaultLocale: 'en',
+  localePrefix: 'never' // Don't add locale prefix to URLs
+});
+
+export async function middleware(request: NextRequest) {
+  // Handle internationalization first
+  const intlResponse = intlMiddleware(request);
+  
+  // Get the locale for this request
+  const locale = getLocale(request);
+  
+  // Set locale cookie if not already set
+  if (!request.cookies.get('locale')) {
+    intlResponse.cookies.set('locale', locale, {
+      path: '/',
+      maxAge: 31536000, // 1 year
+      sameSite: 'lax'
+    });
+  }
+
+  // ... rest of middleware logic
+}
+```
+
+### 4. Message Structure
+```json
+// messages/en.json
+{
+  "auth": {
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "email": "Email",
+    "password": "Password",
+    "rememberMe": "Remember me"
+  },
+  "lists": {
+    "createList": "Create List",
+    "listName": "List Name",
+    "addItem": "Add Item"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit"
+  }
+}
+```
+
+```json
+// messages/he.json
+{
+  "auth": {
+    "signIn": "התחבר",
+    "signUp": "הירשם",
+    "email": "אימייל",
+    "password": "סיסמה",
+    "rememberMe": "זכור אותי"
+  },
+  "lists": {
+    "createList": "צור רשימה",
+    "listName": "שם הרשימה",
+    "addItem": "הוסף פריט"
+  },
+  "common": {
+    "save": "שמור",
+    "cancel": "בטל",
+    "delete": "מחק",
+    "edit": "ערוך"
+  }
+}
+```
+
+### 5. Usage in Components
+```typescript
+// Using translations in components
+import { useTranslations } from 'next-intl';
+
+export const LoginForm: React.FC = () => {
+  const t = useTranslations('auth');
+  
+  return (
+    <form>
+      <Typography variant="h4">
+        {t('signIn')}
+      </Typography>
+      <TextField
+        label={t('email')}
+        type="email"
+      />
+      <TextField
+        label={t('password')}
+        type="password"
+      />
+    </form>
+  );
+};
+```
+
+### 6. Language Switcher Component
+```typescript
+// src/components/features/LanguageSwitcher.tsx
+export const LanguageSwitcher: React.FC = () => {
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [isPending, startTransition] = useTransition();
+  const locale = useLocale();
+  const router = useRouter();
+
+  const handleLanguageChange = (newLocale: string) => {
+    if (newLocale === locale) return;
+
+    startTransition(() => {
+      // Set the locale cookie
+      document.cookie = `locale=${newLocale}; Path=/; Max-Age=31536000; SameSite=Lax`;
+      
+      // Force a full page reload to apply the new locale
+      window.location.reload();
+    });
+  };
+
+  return (
+    <Button onClick={handleClick}>
+      {currentLanguage?.nativeName}
+    </Button>
+  );
+};
+```
+
+### 7. Localized Validation Schemas
+```typescript
+// src/lib/validations/item-schemas.ts
+export const createItemSchema = (messages: Record<string, string>) => {
+  return z.object({
+    id: z.string().min(1, messages.idRequired || 'ID is required'),
+    name: z.string().min(1, messages.nameRequired || 'Name is required').max(100, messages.nameTooLong || 'Name too long'),
+    emoji: z.string().min(1, messages.emojiRequired || 'Emoji is required').max(10, messages.emojiTooLong || 'Emoji too long'),
+    tags: z.array(z.string().min(1, messages.tagCannotBeEmpty || 'Tag cannot be empty')).max(20, messages.tooManyTags || 'Too many tags'),
+  });
+};
+```
+
+## RTL (Right-to-Left) Support
+
+### 1. Automatic RTL Detection
+```typescript
+// src/components/layout/ClientLayout.tsx
+'use client';
+
+import React, { useEffect } from 'react';
+import { useLocale } from 'next-intl';
+
+interface ClientLayoutProps {
+  children: React.ReactNode;
+}
+
+export const ClientLayout: React.FC<ClientLayoutProps> = ({ children }) => {
+  const locale = useLocale();
+  const isRTL = locale === 'he';
+
+  // Update the HTML lang and dir attributes
+  useEffect(() => {
+    document.documentElement.lang = locale;
+    document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
+  }, [locale, isRTL]);
+
+  return <>{children}</>;
+};
+```
+
+### 2. RTL-Aware Theme System
+```typescript
+// src/lib/theme/themes.ts
+import { createTheme } from '@mui/material/styles';
+import { ThemeMode } from '@/types/theme';
+
+export const getTheme = (mode: ThemeMode, isRTL: boolean = false) => {
+  const theme = themes[mode];
+  
+  if (isRTL) {
+    return createTheme({
+      ...theme,
+      direction: 'rtl',
+    });
+  }
+  
+  return theme;
+};
+
+// Usage in MuiThemeProvider
+export const MuiThemeProvider: React.FC<MuiThemeProviderProps> = ({ children }) => {
+  const { theme } = useTheme();
+  const locale = useLocale();
+  const isRTL = locale === 'he';
+  
+  const muiTheme = getTheme(theme, isRTL);
+
+  return (
+    <AppRouterCacheProvider options={{ key: 'css' }}>
+      <MuiThemeProvider theme={muiTheme}>
+        <CssBaseline />
+        {children}
+      </MuiThemeProvider>
+    </AppRouterCacheProvider>
+  );
+};
+```
+
+### 3. RTL-Aware Component Styling
+```typescript
+// Using RTL-aware styling in components
+export const ShoppingListCard: React.FC<ShoppingListCardProps> = ({ list }) => {
+  const theme = useTheme();
+  const isRTL = theme.direction === 'rtl';
+
+  return (
+    <Card
+      sx={{
+        // RTL-aware padding
+        paddingLeft: isRTL ? 2 : 3,
+        paddingRight: isRTL ? 3 : 2,
+        
+        // RTL-aware margin
+        marginLeft: isRTL ? 'auto' : 0,
+        marginRight: isRTL ? 0 : 'auto',
+        
+        // RTL-aware text alignment
+        textAlign: isRTL ? 'right' : 'left',
+      }}
+    >
+      {/* Card content */}
+    </Card>
+  );
+};
+```
+
+### 4. RTL-Aware Layout Components
+```typescript
+// RTL-aware grid layout
+export const ShoppingListsGrid: React.FC<ShoppingListsGridProps> = ({ lists }) => {
+  const theme = useTheme();
+  const isRTL = theme.direction === 'rtl';
+
+  return (
+    <Grid
+      container
+      spacing={2}
+      sx={{
+        // RTL-aware flex direction
+        flexDirection: isRTL ? 'row-reverse' : 'row',
+        
+        // RTL-aware gap
+        gap: isRTL ? '16px 0' : '0 16px',
+      }}
+    >
+      {lists.map(list => (
+        <Grid item xs={12} sm={6} md={4} key={list.id}>
+          <ShoppingListCard list={list} />
+        </Grid>
+      ))}
+    </Grid>
+  );
+};
+```
+
+### 5. RTL-Aware Form Components
+```typescript
+// RTL-aware form layout
+export const ItemForm: React.FC = () => {
+  const theme = useTheme();
+  const isRTL = theme.direction === 'rtl';
+
+  return (
+    <form>
+      <Stack
+        spacing={2}
+        sx={{
+          // RTL-aware spacing
+          '& > *': {
+            marginLeft: isRTL ? 0 : 'auto',
+            marginRight: isRTL ? 'auto' : 0,
+          },
+        }}
+      >
+        <TextField
+          label="Item Name"
+          sx={{
+            // RTL-aware input styling
+            '& .MuiInputBase-input': {
+              textAlign: isRTL ? 'right' : 'left',
+            },
+          }}
+        />
+        
+        <Button
+          variant="contained"
+          sx={{
+            // RTL-aware button positioning
+            alignSelf: isRTL ? 'flex-start' : 'flex-end',
+          }}
+        >
+          Save
+        </Button>
+      </Stack>
+    </form>
+  );
+};
+```
+
+### 6. RTL-Aware Navigation
+```typescript
+// RTL-aware navigation menu
+export const NavigationMenu: React.FC = () => {
+  const theme = useTheme();
+  const isRTL = theme.direction === 'rtl';
+
+  return (
+    <Drawer
+      variant="permanent"
+      sx={{
+        '& .MuiDrawer-paper': {
+          // RTL-aware positioning
+          right: isRTL ? 0 : 'auto',
+          left: isRTL ? 'auto' : 0,
+          
+          // RTL-aware border
+          borderRight: isRTL ? 'none' : '1px solid',
+          borderLeft: isRTL ? '1px solid' : 'none',
+        },
+      }}
+    >
+      {/* Navigation content */}
+    </Drawer>
+  );
+};
+```
+
+### 7. RTL-Aware Icons and Images
+```typescript
+// RTL-aware icon flipping
+export const ArrowIcon: React.FC<{ direction: 'left' | 'right' }> = ({ direction }) => {
+  const theme = useTheme();
+  const isRTL = theme.direction === 'rtl';
+
+  // Flip arrow direction in RTL
+  const actualDirection = isRTL 
+    ? (direction === 'left' ? 'right' : 'left')
+    : direction;
+
+  return (
+    <Icon
+      sx={{
+        transform: isRTL ? 'scaleX(-1)' : 'none',
+      }}
+    >
+      {actualDirection === 'left' ? <ArrowBackIcon /> : <ArrowForwardIcon />}
+    </Icon>
+  );
+};
+```
+
+### 8. RTL-Aware Animations
+```typescript
+// RTL-aware slide animations
+export const SlideTransition: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const theme = useTheme();
+  const isRTL = theme.direction === 'rtl';
+
+  return (
+    <Slide
+      direction={isRTL ? 'left' : 'right'}
+      in={true}
+      mountOnEnter
+      unmountOnExit
+    >
+      {children}
+    </Slide>
+  );
+};
+```
+
+## Best Practices
+
+### 1. Internationalization
+- **Always use `useTranslations` hook** instead of hardcoded strings
+- **Namespace translations** by feature (auth, lists, common)
+- **Provide fallback messages** in validation schemas
+- **Use cookie-based persistence** for user language preference
+- **Detect system language** as fallback
+- **Support RTL languages** with proper direction switching
+- **Test with both languages** to ensure proper layout
+- **Use native language names** in language switcher
+
+### 2. RTL Support
+- **Use automatic RTL detection** based on locale
+- **Update HTML attributes** (lang, dir) dynamically
+- **Use MUI's built-in RTL support** with direction prop
+- **Test all components** with RTL layouts
+- **Use RTL-aware styling** for custom components
+- **Handle text alignment** properly for RTL languages
+- **Use proper spacing and margins** for RTL layouts
+- **Test with Hebrew content** to ensure proper display
+- **Use RTL-aware icons** and visual elements
+- **Handle form layouts** properly for RTL languages
+- **Use proper text direction** for mixed content
+- **Test navigation and menus** with RTL layouts
+- **Use RTL-aware animations** and transitions
+- **Handle edge cases** in RTL layouts
+
+### 3. Message Management
+- **Keep messages organized** by feature/namespace
+- **Use consistent key naming** conventions
+- **Provide context** for translators with comments
+- **Handle pluralization** properly
+- **Use interpolation** for dynamic content
+- **Test message loading** and fallbacks
+- **Validate message completeness** across all locales
+- **Use proper date/time formatting** for each locale
+- **Handle number formatting** for different locales
+
+### 4. Performance
+- **Lazy load messages** to reduce bundle size
+- **Use message splitting** for large applications
+- **Cache translated content** appropriately
+- **Optimize RTL CSS** to avoid layout shifts
+- **Use CSS logical properties** where possible
+- **Minimize RTL-specific code** by using MUI's built-in support
+
+## Related Rule Files
+- `core-rules.mdc` - Project overview and basic architecture
+- `theme-rules.mdc` - Theming system and customization
+- `ui-rules.mdc` - MUI patterns and component guidelines# Internationalization & RTL Rules
 
 ## Internationalization (i18n) with next-intl
 
