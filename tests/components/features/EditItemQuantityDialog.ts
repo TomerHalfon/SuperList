@@ -109,7 +109,7 @@ export class EditItemQuantityDialog extends BaseComponent {
    * Get the current quantity value
    */
   async getQuantity() {
-    const value = await this.quantityInput.getInputValue();
+    const value = await this.quantityInput.getValue();
     return parseInt(value, 10);
   }
 
