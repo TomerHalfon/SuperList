@@ -115,7 +115,7 @@ export class LoginForm extends BaseComponent {
    * Get the error message (if any)
    */
   async getErrorMessage() {
-    const errorAlert = this.locator.getByRole('alert');
+    const errorAlert = this.locator.getByTestId('login-error-alert');
     if (await errorAlert.isVisible()) {
       return await errorAlert.textContent();
     }
@@ -126,7 +126,7 @@ export class LoginForm extends BaseComponent {
    * Check if there's an error message displayed
    */
   async hasError() {
-    const errorAlert = this.locator.getByRole('alert');
+    const errorAlert = this.locator.getByTestId('login-error-alert');
     return await errorAlert.isVisible();
   }
 
@@ -146,6 +146,13 @@ export class LoginForm extends BaseComponent {
    */
   async isLoading() {
     return await this.signInButton.isLoading();
+  }
+
+  /**
+   * Wait for the form to enter loading state
+   */
+  async waitForLoading(timeout: number = 5000) {
+    await this.signInButton.waitForLoading(timeout);
   }
 
   /**

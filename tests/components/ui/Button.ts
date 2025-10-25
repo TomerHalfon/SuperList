@@ -114,6 +114,14 @@ export class Button extends BaseComponent {
   }
 
   /**
+   * Wait for the button to enter loading state
+   */
+  async waitForLoading(timeout: number = 5000) {
+    const loadingIndicator = this.locator.locator('.MuiCircularProgress-root');
+    await loadingIndicator.waitFor({ state: 'visible', timeout });
+  }
+
+  /**
    * Get the button's aria-label
    */
   async getAriaLabel() {
@@ -125,48 +133,6 @@ export class Button extends BaseComponent {
    */
   async getTitle() {
     return await this.locator.getAttribute('title');
-  }
-
-  /**
-   * Assert that the button is visible
-   */
-  async expectVisible() {
-    await super.expectVisible();
-  }
-
-  /**
-   * Assert that the button is hidden
-   */
-  async expectHidden() {
-    await this.expectHidden();
-  }
-
-  /**
-   * Assert that the button is enabled
-   */
-  async expectEnabled() {
-    await this.expectEnabled();
-  }
-
-  /**
-   * Assert that the button is disabled
-   */
-  async expectDisabled() {
-    await this.expectDisabled();
-  }
-
-  /**
-   * Assert that the button has specific text
-   */
-  async expectText(text: string | RegExp) {
-    await this.expectText(text);
-  }
-
-  /**
-   * Assert that the button contains specific text
-   */
-  async expectTextContaining(text: string | RegExp) {
-    await this.expectTextContaining(text);
   }
 
   /**

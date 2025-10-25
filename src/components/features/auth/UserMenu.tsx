@@ -42,6 +42,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user }) => {
   return (
     <>
       <IconButton
+        data-testid="user-menu-button"
         onClick={handleClick}
         size="small"
         aria-controls={open ? 'user-menu' : undefined}

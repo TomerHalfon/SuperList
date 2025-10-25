@@ -9,8 +9,7 @@ const createLocalizedSchema = (messages: Record<string, string>) => {
       .email(messages.invalidEmail || 'Invalid email address'),
     password: z
       .string()
-      .min(1, messages.passwordRequired || 'Password is required')
-      .min(6, messages.passwordMinLength || 'Password must be at least 6 characters'),
+      .min(1, messages.passwordRequired || 'Password is required'),
     rememberMe: z.boolean().optional().default(false),
   });
 };
@@ -25,8 +24,7 @@ export const signInSchema = z.object({
     .email('Invalid email address'),
   password: z
     .string()
-    .min(1, 'Password is required')
-    .min(6, 'Password must be at least 6 characters'),
+    .min(1, 'Password is required'),
   rememberMe: z.boolean().optional().default(false),
 });
 
@@ -66,8 +64,7 @@ export const createSignInSchema = (messages: Record<string, string>) => {
       .email(messages.invalidEmail || 'Invalid email address'),
     password: z
       .string()
-      .min(1, messages.passwordRequired || 'Password is required')
-      .min(6, messages.passwordMinLength || 'Password must be at least 6 characters'),
+      .min(1, messages.passwordRequired || 'Password is required'),
     rememberMe: z.boolean().optional().default(false),
   });
 };

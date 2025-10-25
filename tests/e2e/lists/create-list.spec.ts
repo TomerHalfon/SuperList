@@ -13,7 +13,8 @@ test.describe('Shopping List Creation', () => {
   test.beforeEach(async ({ page }) => {
     homePage = new HomePage(page);
     await homePage.goto();
-    await homePage.waitForListsToLoad();
+    // Wait for the page to be ready (create button visible) instead of waiting for lists
+    await homePage.waitForPageReady();
   });
 
   test.afterEach(async ({ page }) => {
@@ -30,12 +31,17 @@ test.describe('Shopping List Creation', () => {
   });
 
   test('should show empty state when no lists exist', async () => {
-    // Clean up any existing lists first
+    // Clean up any existing test lists first
     await TestDataUtils.cleanupAllTestShoppingLists(homePage.getPage());
-    await homePage.goto();
-    await homePage.waitForListsToLoad();
     
-    // Should show empty state
+    // Navigate to home page and wait for it to be ready
+    await homePage.goto();
+    await homePage.waitForPageReady();
+    
+    // Wait specifically for empty state to appear (more efficient than waiting for lists)
+    await homePage.waitForEmptyState();
+    
+    // Verify empty state is shown
     await homePage.expectEmptyState();
     await homePage.expectShoppingListCount(0);
   });
@@ -53,6 +59,9 @@ test.describe('Shopping List Creation', () => {
     // Wait for the list to appear
     await TestDataUtils.waitForTestDataCreation(homePage.getPage(), 'test_list');
     
+    // Wait for lists to load after creation
+    await homePage.waitForListsToLoad();
+    
     // Verify the list was created
     await homePage.expectShoppingList(testList.name);
     await homePage.expectShoppingListCount(1);
@@ -67,6 +76,9 @@ test.describe('Shopping List Creation', () => {
       // Simulate list creation
       await TestDataUtils.waitForTestDataCreation(homePage.getPage(), list.name);
     }
+    
+    // Wait for lists to load after all creations
+    await homePage.waitForListsToLoad();
     
     // Verify all lists were created
     await homePage.expectShoppingListCount(3);
@@ -83,6 +95,9 @@ test.describe('Shopping List Creation', () => {
     await homePage.clickCreateList();
     await TestDataUtils.waitForTestDataCreation(homePage.getPage(), 'navigation_test');
     
+    // Wait for lists to load after creation
+    await homePage.waitForListsToLoad();
+    
     // Click on the list card
     await homePage.clickShoppingList(testList.name);
     
@@ -97,6 +112,9 @@ test.describe('Shopping List Creation', () => {
     await homePage.clickCreateList();
     await TestDataUtils.waitForTestDataCreation(homePage.getPage(), 'delete_test');
     
+    // Wait for lists to load after creation
+    await homePage.waitForListsToLoad();
+    
     // Verify list exists
     await homePage.expectShoppingList(testList.name);
     
@@ -105,6 +123,9 @@ test.describe('Shopping List Creation', () => {
     
     // Wait for deletion
     await TestDataUtils.waitForTestDataDeletion(homePage.getPage(), 'delete_test');
+    
+    // Wait for lists to load after deletion
+    await homePage.waitForListsToLoad();
     
     // Verify list is deleted
     await homePage.expectNoShoppingList(testList.name);
@@ -119,6 +140,9 @@ test.describe('Shopping List Creation', () => {
       await homePage.clickCreateList();
       await TestDataUtils.waitForTestDataCreation(homePage.getPage(), list.name);
     }
+    
+    // Wait for lists to load after all creations
+    await homePage.waitForListsToLoad();
     
     // Search for a specific list
     await homePage.searchLists('search_test_list_1');
@@ -142,6 +166,9 @@ test.describe('Shopping List Creation', () => {
     await homePage.clickCreateList();
     await TestDataUtils.waitForTestDataCreation(homePage.getPage(), 'special_chars_!@#$%');
     
+    // Wait for lists to load after creation
+    await homePage.waitForListsToLoad();
+    
     // Verify list was created
     await homePage.expectShoppingList(specialList.name);
   });
@@ -153,6 +180,9 @@ test.describe('Shopping List Creation', () => {
     // Create list with long name
     await homePage.clickCreateList();
     await TestDataUtils.waitForTestDataCreation(homePage.getPage(), longName);
+    
+    // Wait for lists to load after creation
+    await homePage.waitForListsToLoad();
     
     // Verify list was created
     await homePage.expectShoppingList(longList.name);

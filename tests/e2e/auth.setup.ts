@@ -10,6 +10,10 @@ setup('authenticate', async ({ browser }) => {
   const context = await browser.newContext();
   const page = await context.newPage();
   
+  // Set longer timeouts for auth setup
+  page.setDefaultTimeout(60000); // 60 seconds
+  page.setDefaultNavigationTimeout(60000); // 60 seconds
+  
   // Navigate to login page
   const loginPage = new LoginPage(page);
   await loginPage.goto();

@@ -2,6 +2,8 @@
 
 import React, { useState, useTransition } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
 import { Stack } from '@/components/ui/Stack';
@@ -12,6 +14,7 @@ import { Alert } from '@/components/ui/Alert';
 import { Divider } from '@/components/ui/Divider';
 import { signInWithEmailAction } from '@/actions/auth';
 import { signInWithOAuth } from '@/lib/auth/auth-helpers';
+import { createSignInSchema } from '@/lib/validations/auth-schemas';
 import { useTranslations } from 'next-intl';
 import GoogleIcon from '@mui/icons-material/Google';
 
@@ -20,47 +23,40 @@ export const LoginForm: React.FC = () => {
   const redirectTo = searchParams.get('redirect');
   const t = useTranslations('auth');
   
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isOAuthLoading, setIsOAuthLoading] = useState(false);
-  const [validationErrors, setValidationErrors] = useState<{
-    email?: string;
-    password?: string;
-  }>({});
 
-  const validateForm = () => {
-    const errors: { email?: string; password?: string } = {};
-    
-    if (!email.trim()) {
-      errors.email = t('emailRequired');
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      errors.email = t('emailInvalid');
-    }
-    
-    if (!password.trim()) {
-      errors.password = t('passwordRequired');
-    }
-    
-    setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
+  // Create localized validation schema
+  const validationSchema = createSignInSchema({
+    emailRequired: t('emailRequired'),
+    invalidEmail: t('emailInvalid'),
+    passwordRequired: t('passwordRequired'),
+  });
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    watch,
+  } = useForm({
+    resolver: zodResolver(validationSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+      rememberMe: false,
+    },
+  });
+
+  const rememberMe = watch('rememberMe');
+
+  const onSubmit = async (data: { email: string; password: string; rememberMe: boolean }) => {
     setError(null);
 
-    // Validate form
-    if (!validateForm()) {
-      return;
-    }
-
     const formData = new FormData();
-    formData.append('email', email);
-    formData.append('password', password);
-    formData.append('rememberMe', String(rememberMe));
+    formData.append('email', data.email);
+    formData.append('password', data.password);
+    formData.append('rememberMe', String(data.rememberMe));
     if (redirectTo) {
       formData.append('redirect', redirectTo);
     }
@@ -68,7 +64,13 @@ export const LoginForm: React.FC = () => {
     startTransition(async () => {
       const result = await signInWithEmailAction(formData);
       if (result?.error) {
-        setError(result.error);
+        // Map server errors to user-friendly messages
+        if (result.error.includes('Invalid login credentials') || 
+            result.error.includes('Invalid email or password')) {
+          setError(t('invalidCredentials'));
+        } else {
+          setError(result.error);
+        }
       }
     });
   };
@@ -91,14 +93,18 @@ export const LoginForm: React.FC = () => {
 
   return (
     <Box sx={{ width: '100%', maxWidth: 400 }}>
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit(onSubmit)}>
         <Stack spacing={3}>
           <Typography variant="h4" align="center" sx={{ mb: 2 }}>
             {t('signIn')}
           </Typography>
 
           {error && (
-            <Alert severity="error" onClose={() => setError(null)}>
+            <Alert 
+              severity="error" 
+              onClose={() => setError(null)}
+              data-testid="login-error-alert"
+            >
               {error}
             </Alert>
           )}
@@ -106,32 +112,30 @@ export const LoginForm: React.FC = () => {
           <TextField
             label={t('email')}
             type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
             fullWidth
             autoComplete="email"
             disabled={isPending || isOAuthLoading}
-            error={!!validationErrors.email}
-            helperText={validationErrors.email}
+            error={!!errors.email}
+            helperText={errors.email?.message}
+            {...register('email')}
           />
 
           <TextField
             label={t('password')}
             type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
             fullWidth
             autoComplete="current-password"
             disabled={isPending || isOAuthLoading}
-            error={!!validationErrors.password}
-            helperText={validationErrors.password}
+            error={!!errors.password}
+            helperText={errors.password?.message}
+            {...register('password')}
           />
 
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <Checkbox
               checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
               disabled={isPending || isOAuthLoading}
+              {...register('rememberMe')}
             />
             <Typography variant="body2" sx={{ ml: 1 }}>
               {t('rememberMe')}

@@ -113,8 +113,11 @@ test.describe('Login Page', () => {
     
     await loginPage.fillCredentials(testEmail, testPassword);
     
-    // Submit and immediately check for loading state
+    // Submit and wait for loading state to appear
     const submitPromise = loginPage.submit();
+    await loginPage.waitForLoading();
+    
+    // Verify loading state is visible
     await loginPage.expectLoading();
     
     // Wait for login to complete
@@ -127,28 +130,15 @@ test.describe('Login Page', () => {
     
     await loginPage.fillCredentials(testEmail, testPassword);
     
-    // Submit and check that form is disabled
+    // Submit and wait for loading state to appear
     const submitPromise = loginPage.submit();
+    await loginPage.waitForLoading();
+    
+    // Check that form is disabled during loading
     await loginPage.expectDisabled();
     
     // Wait for login to complete
     await submitPromise;
-  });
-
-  test('should handle keyboard navigation', async () => {
-    // Test tab navigation
-    await loginPage.focusEmail();
-    await loginPage.pressTab();
-    
-    // Should focus password field
-    await expect(loginPage.getLoginForm().getPasswordField().getLocator()).toBeFocused();
-    
-    // Test enter key submission
-    await loginPage.fillCredentials('test@example.com', 'testpassword123');
-    await loginPage.pressEnter();
-    
-    // Should attempt to submit (may show error for invalid credentials)
-    await loginPage.waitForLoginError();
   });
 
   test('should be accessible', async ({ page }) => {

@@ -19,7 +19,8 @@
     "mustBeAtLeast6Chars": "חייב להיות לפחות 6 תווים",
     "emailRequired": "אימייל נדרש",
     "emailInvalid": "אנא הזן כתובת אימייל תקינה",
-    "passwordRequired": "סיסמה נדרשת"
+    "passwordRequired": "סיסמה נדרשת",
+    "invalidCredentials": "אימייל או סיסמה לא תקינים"
   },
   "validation": {
     "emailRequired": "אימייל נדרש",

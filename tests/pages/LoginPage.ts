@@ -226,8 +226,34 @@ export class LoginPage extends BasePage {
     if (redirectUrl) {
       await this.waitForUrl(redirectUrl);
     } else {
-      // Wait for redirect away from login page
-      await this.page.waitForURL(url => !url.pathname.includes('/login'));
+      // Wait for redirect away from login page with multiple fallback conditions
+      try {
+        // Primary: Wait for URL change away from login page
+        await this.page.waitForURL(url => !url.pathname.includes('/login'), { 
+          timeout: 30000 // 30 seconds timeout
+        });
+      } catch (error) {
+        // Fallback 1: Check if we're on home page
+        const currentUrl = this.page.url();
+        if (currentUrl.includes('/') && !currentUrl.includes('/login')) {
+          return; // Success - we're not on login page
+        }
+        
+        // Fallback 2: Wait for any navigation to complete
+        await this.page.waitForLoadState('networkidle', { timeout: 10000 });
+        
+        // Fallback 3: Check if there's an error message
+        const errorMessage = await this.getErrorMessage();
+        if (errorMessage) {
+          throw new Error(`Login failed with error: ${errorMessage}`);
+        }
+        
+        // Final check: Are we still on login page?
+        const finalUrl = this.page.url();
+        if (finalUrl.includes('/login')) {
+          throw new Error(`Login timeout: Still on login page after 30 seconds. Current URL: ${finalUrl}`);
+        }
+      }
     }
   }
 
@@ -235,7 +261,7 @@ export class LoginPage extends BasePage {
    * Wait for login error to appear
    */
   async waitForLoginError() {
-    await this.page.waitForSelector('[role="alert"]', { state: 'visible' });
+    await this.page.waitForSelector('[data-testid="login-error-alert"]', { state: 'visible' });
   }
 
   /**
@@ -307,6 +333,13 @@ export class LoginPage extends BasePage {
    */
   async expectLoading() {
     await this.loginForm.expectLoading();
+  }
+
+  /**
+   * Wait for the form to enter loading state
+   */
+  async waitForLoading(timeout: number = 5000) {
+    await this.loginForm.waitForLoading(timeout);
   }
 
   /**

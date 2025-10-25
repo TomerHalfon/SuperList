@@ -195,7 +195,10 @@ export class TextField extends BaseComponent {
    * Assert that the field has a specific value
    */
   async expectValue(value: string) {
-    await this.expectAttribute('value', value);
+    const currentValue = await this.locator.inputValue();
+    if (currentValue !== value) {
+      throw new Error(`Expected field value to be "${value}" but got "${currentValue}"`);
+    }
   }
 
   /**

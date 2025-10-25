@@ -174,10 +174,22 @@ export class TestDataUtils {
   static async getTestShoppingLists(page: Page) {
     const homePage = new HomePage(page);
     await homePage.goto();
-    await homePage.waitForListsToLoad();
+    await homePage.waitForPageReady();
     
-    const allNames = await homePage.getShoppingListNames();
-    return allNames.filter(name => name.startsWith(TEST_DATA_PREFIX));
+    // Check if there are any lists at all before waiting for them to load
+    const hasLists = await homePage.getShoppingListCards().count() > 0;
+    const hasEmptyState = await homePage.hasEmptyState();
+    
+    if (hasLists || hasEmptyState) {
+      // Lists are already loaded or empty state is shown
+      const allNames = await homePage.getShoppingListNames();
+      return allNames.filter(name => name.startsWith(TEST_DATA_PREFIX));
+    } else {
+      // Need to wait for lists to load
+      await homePage.waitForListsToLoad();
+      const allNames = await homePage.getShoppingListNames();
+      return allNames.filter(name => name.startsWith(TEST_DATA_PREFIX));
+    }
   }
 
   /**
@@ -198,25 +210,63 @@ export class TestDataUtils {
   static async cleanupAllTestShoppingLists(page: Page) {
     const homePage = new HomePage(page);
     await homePage.goto();
-    await homePage.waitForListsToLoad();
+    await homePage.waitForPageReady();
     
-    const testListNames = await this.getTestShoppingLists(page);
+    // Check if there are any lists at all before proceeding
+    const hasLists = await homePage.getShoppingListCards().count() > 0;
+    const hasEmptyState = await homePage.hasEmptyState();
     
-    for (const listName of testListNames) {
-      try {
-        // Find the list card and delete it
-        const listCard = homePage.getShoppingListCard(listName);
-        if (await listCard.isVisible()) {
-          await listCard.clickDelete();
-          
-          // Handle delete confirmation dialog if it appears
-          const deleteDialog = page.locator('[role="dialog"]:has-text("delete")');
-          if (await deleteDialog.isVisible()) {
-            await deleteDialog.getByRole('button', { name: /confirm|delete|yes/i }).click();
+    if (hasEmptyState) {
+      // Already in empty state, no cleanup needed
+      return;
+    }
+    
+    if (hasLists) {
+      // There are lists, wait for them to load and clean up test lists
+      await homePage.waitForListsToLoad();
+      const testListNames = await this.getTestShoppingLists(page);
+      
+      for (const listName of testListNames) {
+        try {
+          // Find the list card and delete it
+          const listCard = homePage.getShoppingListCard(listName);
+          if (await listCard.isVisible()) {
+            await listCard.clickDelete();
+            
+            // Handle delete confirmation dialog if it appears
+            const deleteDialog = page.locator('[role="dialog"]:has-text("delete")');
+            if (await deleteDialog.isVisible()) {
+              await deleteDialog.getByRole('button', { name: /confirm|delete|yes/i }).click();
+            }
+          }
+        } catch (error) {
+          console.warn(`Failed to delete test list "${listName}":`, error);
+        }
+      }
+    } else {
+      // No lists visible yet, wait for either lists or empty state
+      await homePage.waitForListsToLoad();
+      
+      // Check again after waiting
+      const finalHasLists = await homePage.getShoppingListCards().count() > 0;
+      if (finalHasLists) {
+        const testListNames = await this.getTestShoppingLists(page);
+        
+        for (const listName of testListNames) {
+          try {
+            const listCard = homePage.getShoppingListCard(listName);
+            if (await listCard.isVisible()) {
+              await listCard.clickDelete();
+              
+              const deleteDialog = page.locator('[role="dialog"]:has-text("delete")');
+              if (await deleteDialog.isVisible()) {
+                await deleteDialog.getByRole('button', { name: /confirm|delete|yes/i }).click();
+              }
+            }
+          } catch (error) {
+            console.warn(`Failed to delete test list "${listName}":`, error);
           }
         }
-      } catch (error) {
-        console.warn(`Failed to delete test list "${listName}":`, error);
       }
     }
   }

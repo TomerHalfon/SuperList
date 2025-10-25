@@ -53,10 +53,56 @@ export default defineConfig({
       use: {
         // Use a single browser for setup to avoid multiple auth state files
         ...devices['Desktop Chrome'],
+        // Increase timeouts for auth setup
+        actionTimeout: 30000,
+        navigationTimeout: 60000,
+      },
+    },
+    // Login tests - run independently without auth setup
+    {
+      name: 'login-tests-chromium',
+      testMatch: /.*\/auth\/login\.spec\.ts/,
+      use: { 
+        ...devices['Desktop Chrome'],
+        // No storage state - fresh browser context for each test
       },
     },
     {
+      name: 'login-tests-firefox',
+      testMatch: /.*\/auth\/login\.spec\.ts/,
+      use: { 
+        ...devices['Desktop Firefox'],
+        // No storage state - fresh browser context for each test
+      },
+    },
+    {
+      name: 'login-tests-webkit',
+      testMatch: /.*\/auth\/login\.spec\.ts/,
+      use: { 
+        ...devices['Desktop Safari'],
+        // No storage state - fresh browser context for each test
+      },
+    },
+    {
+      name: 'login-tests-mobile-chrome',
+      testMatch: /.*\/auth\/login\.spec\.ts/,
+      use: { 
+        ...devices['Pixel 5'],
+        // No storage state - fresh browser context for each test
+      },
+    },
+    {
+      name: 'login-tests-mobile-safari',
+      testMatch: /.*\/auth\/login\.spec\.ts/,
+      use: { 
+        ...devices['iPhone 12'],
+        // No storage state - fresh browser context for each test
+      },
+    },
+    // Authenticated tests - use auth setup
+    {
       name: 'chromium',
+      testIgnore: /.*\/auth\/login\.spec\.ts/,
       use: { 
         ...devices['Desktop Chrome'],
         // Use the auth state file created by setup
@@ -66,6 +112,7 @@ export default defineConfig({
     },
     {
       name: 'firefox',
+      testIgnore: /.*\/auth\/login\.spec\.ts/,
       use: { 
         ...devices['Desktop Firefox'],
         storageState: 'tests/fixtures/auth-state.json',
@@ -74,6 +121,7 @@ export default defineConfig({
     },
     {
       name: 'webkit',
+      testIgnore: /.*\/auth\/login\.spec\.ts/,
       use: { 
         ...devices['Desktop Safari'],
         storageState: 'tests/fixtures/auth-state.json',
@@ -83,6 +131,7 @@ export default defineConfig({
     /* Test against mobile viewports. */
     {
       name: 'Mobile Chrome',
+      testIgnore: /.*\/auth\/login\.spec\.ts/,
       use: { 
         ...devices['Pixel 5'],
         storageState: 'tests/fixtures/auth-state.json',
@@ -91,6 +140,7 @@ export default defineConfig({
     },
     {
       name: 'Mobile Safari',
+      testIgnore: /.*\/auth\/login\.spec\.ts/,
       use: { 
         ...devices['iPhone 12'],
         storageState: 'tests/fixtures/auth-state.json',
@@ -100,6 +150,7 @@ export default defineConfig({
     /* Test against branded browsers. */
     {
       name: 'Microsoft Edge',
+      testIgnore: /.*\/auth\/login\.spec\.ts/,
       use: { 
         ...devices['Desktop Edge'], 
         channel: 'msedge',
@@ -109,6 +160,7 @@ export default defineConfig({
     },
     {
       name: 'Google Chrome',
+      testIgnore: /.*\/auth\/login\.spec\.ts/,
       use: { 
         ...devices['Desktop Chrome'], 
         channel: 'chrome',

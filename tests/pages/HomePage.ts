@@ -208,7 +208,7 @@ export class HomePage extends BasePage {
    * Get the empty state message
    */
   getEmptyStateMessage() {
-    return this.page.locator('[data-testid="empty-state"], .empty-state, :has-text("No lists found"), :has-text("Create your first list")');
+    return this.page.locator('[data-testid="empty-state"], .empty-state, h6:has-text("No shopping lists yet")');
   }
 
   /**
@@ -236,7 +236,33 @@ export class HomePage extends BasePage {
    * Wait for the shopping lists to load
    */
   async waitForListsToLoad() {
-    await this.page.waitForSelector('[data-testid^="shopping-list-card"], .MuiCard-root, [data-testid="empty-state"]', { 
+    await this.page.waitForSelector('[data-testid^="shopping-list-card"], .MuiCard-root, [data-testid="empty-state"], h6:has-text("No shopping lists yet")', { 
+      state: 'visible',
+      timeout: 10000 
+    });
+  }
+
+  /**
+   * Wait for the page to be ready (create button visible and page loaded)
+   * This is data-independent and doesn't wait for lists to load
+   */
+  async waitForPageReady() {
+    await this.createListButton.expectVisible();
+    // Wait for any loading skeletons to disappear
+    await this.page.waitForSelector('[data-testid="shopping-lists-skeleton"], .MuiSkeleton-root', { 
+      state: 'hidden',
+      timeout: 5000 
+    }).catch(() => {
+      // Ignore if no loading skeleton is present
+    });
+  }
+
+  /**
+   * Wait specifically for empty state to appear
+   * This is more efficient than waiting for lists to load when we expect no data
+   */
+  async waitForEmptyState() {
+    await this.page.waitForSelector('[data-testid="empty-state"], .empty-state, h6:has-text("No shopping lists yet")', { 
       state: 'visible',
       timeout: 10000 
     });
